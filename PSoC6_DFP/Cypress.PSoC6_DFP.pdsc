@@ -5,11 +5,17 @@
   <description>Cypress PSoC 6 Device Support</description>
   <url>https://github.com/cypresssemiconductorco/cmsis-packs/raw/master/PSoC6_DFP/</url>
   <supportContact>https://www.cypress.com/support</supportContact>
-  <license>LICENSE.txt</license>
+  <license>APACHE_LICENSE.txt</license>
   <releases>
+    <release version="1.1.0" date="2020-09-07">
+      - Added new CY8C6xx4, CY8C6xx5, CY8C6xx8 and CY8C6xxA devices in PSoC® 61 series.
+      - Added new CY8C6xx4 and removed obsolete CY8C6xx5 and CY8C6xxA devices in PSoC® 62 series
+      - Updated PSoC® 6 CMSIS Flash Loaders to v3.0.0.321: bugfixes, performance and stability improvements.
+      - Corrections in System View Description (*.svd) files.
+    </release>
     <release version="1.0.0" date="2020-03-19">
-      First Release version of PSoC 6 Device Family Pack.
-      Based on Cypress CMSIS Flash Loaders v3.0.0.209.
+      First Release version of PSoC® 6 Device Family Pack.
+      Based on Cypress PSoC® 6 CMSIS Flash Loaders v3.0.0.209.
     </release>
   </releases>
 
@@ -30,75 +36,59 @@
       <debug Pname="Cortex-M4"  __ap="2" defaultResetSequence="ResetSystem"/>
       <sequences>
         <sequence name="DebugPortStart">
-
           <block info="Read DP CTRL/STAT">
             __var SW_DP_ABORT  = 0x0;
             __var DP_CTRL_STAT = 0x4;
             __var DP_SELECT    = 0x8;
             __var powered_down = 0;
-            // Switch to DP Register Bank 0
-            WriteDP(DP_SELECT, __ap &lt;&lt; 24);     // Explicitly set APSEL to current AP selection
-
+            // Switch to DP Register Bank 0. Explicitly set APSEL to current AP selection
+            WriteDP(DP_SELECT, __ap &lt;&lt; 24);
             // Read DP CTRL/STAT Register and check if CSYSPWRUPACK and CDBGPWRUPACK bits are set
             powered_down = ((ReadDP(DP_CTRL_STAT) &amp; 0xA0000000) != 0xA0000000);
           </block>
-
           <control if="powered_down">
-
             <block info="Power Up System &amp; Debug">
               // Request Debug/System Power-Up
+              // Ignore error here: even there is a polling in the next block, CMSIS-DAP transports reads DP->RDBUFF register
+              // right after write to DP->CTRL_STAT. This will fail for some cases - for example if device is waking from DeepSleep.
+              __errorcontrol = 1;
               WriteDP(DP_CTRL_STAT, 0x50000000);
+              __errorcontrol = 0;
             </block>
-
             <!-- Wait for Power-Up Request to be acknowledged -->
             <control while="(ReadDP(DP_CTRL_STAT) &amp; 0xA0000000) != 0xA0000000" timeout="1000000" info="Wait for power acknowledged"/>
-
-
             <!-- CDBGRSTREQ on PSoC6 behaves like Power-On Reset. Not desired when starting the Debug Port
-
             <block info="Debug Reset">
               __errorcontrol = 1;
               // Request Debug Reset
               WriteDP(DP_CTRL_STAT, 0x54000000);
-
               // CDBGRSTREQ is equivalent to Power-On Reset and fully reboots the device.
               // Depending on the user application the reboot can take up to 600ms.
               DAP_Delay(600000);
               __errorcontrol = 0;
             </block>
             -->
-
             <!-- Wait for Debug Reset to be acknowledged, don't issue error on timeout to deal with improperly connected Debug Reset -->
             <!-- <control while="(ReadDP(DP_CTRL_STAT) &amp; 0xA8000000) != 0xA8000000" timeout="300000" info="Wait for Debug Reset Acknowledge"/> -->
-
-
             <!-- JTAG Specific Part of sequence -->
             <control if="(__protocol &amp; 0xFFFF) == 1">
-
               <block info="JTAG: Clear Sticky Bits">
                 // Init AP Transfer Mode, Transaction Counter, and Lane Mask (Normal Transfer Mode, Include all Byte Lanes)
                 // Additionally clear STICKYORUN, STICKYCMP, and STICKYERR bits by writing '1'
                 WriteDP(DP_CTRL_STAT, 0x50000F32);
               </block>
-
             </control>
-
             <!-- SWD Specific Part of sequence -->
             <control if="(__protocol &amp; 0xFFFF) == 2">
-
               <block info="SWD: Init SWD &amp; Clear Sticky Bits">
                 // Init AP Transfer Mode, Transaction Counter, and Lane Mask (Normal Transfer Mode, Include all Byte Lanes)
                 WriteDP(DP_CTRL_STAT, 0x50000F00);
-
                 // Clear WDATAERR, STICKYORUN, STICKYCMP, and STICKYERR bits of CTRL/STAT Register by write to ABORT register
                 WriteDP(SW_DP_ABORT, 0x0000001E);
               </block>
             </control>
-
           </control>
-
         </sequence>
-
         <!-- HW Reset causes a reboot of the device which also resets debug.
              - Using this as a prereset is OK to potentially wake up the system from DeepSleep.
              - Using this in the middle of the debug session will break the connection unless recovery
@@ -108,31 +98,23 @@
           <block>
             __var nReset      = 0x80;
             __var canReadPins = 0;
-
             // Deassert nRESET line
             canReadPins = (DAP_SWJ_Pins(0x00, nReset, 0) != 0xFFFFFFFF);
           </block>
-
           <!-- Keep reset active for 50 ms -->
           <control while="1" timeout="50000"/>
           <control if="canReadPins">
-
             <!-- Assert nRESET line and wait max. 1s for recovery -->
             <control while="(DAP_SWJ_Pins(nReset, nReset, 0) &amp; nReset) == 0" timeout="1000000"/>
-
           </control>
-
           <control if="!canReadPins">
-
             <block>
               // Assert nRESET line
               DAP_SWJ_Pins(nReset, nReset, 0);
             </block>
-
             <!-- Wait 100ms for recovery if nRESET not readable -->
             <control while="1" timeout="100000"/>
           </control>
-
           <block>
             // Give the PSoC6 bootloader time to finish (can be up to 600ms)
             DAP_Delay(600000);
@@ -182,75 +164,59 @@
       <debug Pname="Cortex-M4"  __ap="2" defaultResetSequence="ResetSystem"/>
       <sequences>
         <sequence name="DebugPortStart">
-
           <block info="Read DP CTRL/STAT">
             __var SW_DP_ABORT  = 0x0;
             __var DP_CTRL_STAT = 0x4;
             __var DP_SELECT    = 0x8;
             __var powered_down = 0;
-            // Switch to DP Register Bank 0
-            WriteDP(DP_SELECT, __ap &lt;&lt; 24);     // Explicitly set APSEL to current AP selection
-
+            // Switch to DP Register Bank 0. Explicitly set APSEL to current AP selection
+            WriteDP(DP_SELECT, __ap &lt;&lt; 24);
             // Read DP CTRL/STAT Register and check if CSYSPWRUPACK and CDBGPWRUPACK bits are set
             powered_down = ((ReadDP(DP_CTRL_STAT) &amp; 0xA0000000) != 0xA0000000);
           </block>
-
           <control if="powered_down">
-
             <block info="Power Up System &amp; Debug">
               // Request Debug/System Power-Up
+              // Ignore error here: even there is a polling in the next block, CMSIS-DAP transports reads DP->RDBUFF register
+              // right after write to DP->CTRL_STAT. This will fail for some cases - for example if device is waking from DeepSleep.
+              __errorcontrol = 1;
               WriteDP(DP_CTRL_STAT, 0x50000000);
+              __errorcontrol = 0;
             </block>
-
             <!-- Wait for Power-Up Request to be acknowledged -->
             <control while="(ReadDP(DP_CTRL_STAT) &amp; 0xA0000000) != 0xA0000000" timeout="1000000" info="Wait for power acknowledged"/>
-
-
             <!-- CDBGRSTREQ on PSoC6 behaves like Power-On Reset. Not desired when starting the Debug Port
-
             <block info="Debug Reset">
               __errorcontrol = 1;
               // Request Debug Reset
               WriteDP(DP_CTRL_STAT, 0x54000000);
-
               // CDBGRSTREQ is equivalent to Power-On Reset and fully reboots the device.
               // Depending on the user application the reboot can take up to 600ms.
               DAP_Delay(600000);
               __errorcontrol = 0;
             </block>
             -->
-
             <!-- Wait for Debug Reset to be acknowledged, don't issue error on timeout to deal with improperly connected Debug Reset -->
             <!-- <control while="(ReadDP(DP_CTRL_STAT) &amp; 0xA8000000) != 0xA8000000" timeout="300000" info="Wait for Debug Reset Acknowledge"/> -->
-
-
             <!-- JTAG Specific Part of sequence -->
             <control if="(__protocol &amp; 0xFFFF) == 1">
-
               <block info="JTAG: Clear Sticky Bits">
                 // Init AP Transfer Mode, Transaction Counter, and Lane Mask (Normal Transfer Mode, Include all Byte Lanes)
                 // Additionally clear STICKYORUN, STICKYCMP, and STICKYERR bits by writing '1'
                 WriteDP(DP_CTRL_STAT, 0x50000F32);
               </block>
-
             </control>
-
             <!-- SWD Specific Part of sequence -->
             <control if="(__protocol &amp; 0xFFFF) == 2">
-
               <block info="SWD: Init SWD &amp; Clear Sticky Bits">
                 // Init AP Transfer Mode, Transaction Counter, and Lane Mask (Normal Transfer Mode, Include all Byte Lanes)
                 WriteDP(DP_CTRL_STAT, 0x50000F00);
-
                 // Clear WDATAERR, STICKYORUN, STICKYCMP, and STICKYERR bits of CTRL/STAT Register by write to ABORT register
                 WriteDP(SW_DP_ABORT, 0x0000001E);
               </block>
             </control>
-
           </control>
-
         </sequence>
-
         <!-- HW Reset causes a reboot of the device which also resets debug.
              - Using this as a prereset is OK to potentially wake up the system from DeepSleep.
              - Using this in the middle of the debug session will break the connection unless recovery
@@ -260,31 +226,23 @@
           <block>
             __var nReset      = 0x80;
             __var canReadPins = 0;
-
             // Deassert nRESET line
             canReadPins = (DAP_SWJ_Pins(0x00, nReset, 0) != 0xFFFFFFFF);
           </block>
-
           <!-- Keep reset active for 50 ms -->
           <control while="1" timeout="50000"/>
           <control if="canReadPins">
-
             <!-- Assert nRESET line and wait max. 1s for recovery -->
             <control while="(DAP_SWJ_Pins(nReset, nReset, 0) &amp; nReset) == 0" timeout="1000000"/>
-
           </control>
-
           <control if="!canReadPins">
-
             <block>
               // Assert nRESET line
               DAP_SWJ_Pins(nReset, nReset, 0);
             </block>
-
             <!-- Wait 100ms for recovery if nRESET not readable -->
             <control while="1" timeout="100000"/>
           </control>
-
           <block>
             // Give the PSoC6 bootloader time to finish (can be up to 600ms)
             DAP_Delay(600000);
@@ -499,6 +457,524 @@
         <algorithm Pname="Cortex-M4"  name="Flash/CY8C6xxx_SMIF.FLM"        start="0x18000000" size="0x08000000" RAMstart="0x08002400" RAMsize="0x8000" default ="0" style="Keil"/>
         <algorithm Pname="Cortex-M4"  name="Flash/CY8C6xxx_EFUSE.FLM"       start="0x90700000" size="0x00000400" RAMstart="0x08002400" RAMsize="0x8000" default ="0" style="Keil"/>
       </device>
+      <device Dname="CY8C614ABZI-S2F04">
+        <compile   define="CY8C614ABZI_S2F04" />
+        <debug     Pname="Cortex-M4"  svd="SVD/psoc6_02.svd"/>
+        <memory    name="IRAM1"       access="rwx" start="0x08000000" size="0x100000" default="1"/>
+        <memory    name="IROM1"       access="rx"  start="0x10000000" size="0x200000" default="1" startup="1"/>
+
+        <algorithm Pname="Cortex-M4"  name="Flash/CY8C6xxA.FLM"             start="0x10000000" size="0x00200000" RAMstart="0x08026400" RAMsize="0x8000" default ="0" style="Keil"/>
+        <algorithm Pname="Cortex-M4"  name="Flash/CY8C6xxA_sect256KB.FLM"   start="0x10000000" size="0x00200000" RAMstart="0x08026400" RAMsize="0x8000" default ="1" style="Keil"/>
+        <algorithm Pname="Cortex-M4"  name="Flash/CY8C6xxA_WFLASH.FLM"      start="0x14000000" size="0x00008000" RAMstart="0x08026400" RAMsize="0x8000" default ="1" style="Keil"/>
+        <algorithm Pname="Cortex-M4"  name="Flash/CY8C6xxA_SFLASH_USER.FLM" start="0x16000800" size="0x00000800" RAMstart="0x08026400" RAMsize="0x8000" default ="1" style="Keil"/>
+        <algorithm Pname="Cortex-M4"  name="Flash/CY8C6xxA_SFLASH_NAR.FLM"  start="0x16001A00" size="0x00000200" RAMstart="0x08026400" RAMsize="0x8000" default ="0" style="Keil"/>
+        <algorithm Pname="Cortex-M4"  name="Flash/CY8C6xxA_SFLASH_PKEY.FLM" start="0x16005A00" size="0x00000C00" RAMstart="0x08026400" RAMsize="0x8000" default ="1" style="Keil"/>
+        <algorithm Pname="Cortex-M4"  name="Flash/CY8C6xxA_SFLASH_TOC2.FLM" start="0x16007C00" size="0x00000400" RAMstart="0x08026400" RAMsize="0x8000" default ="1" style="Keil"/>
+        <algorithm Pname="Cortex-M4"  name="Flash/CY8C6xxA_SMIF.FLM"        start="0x18000000" size="0x08000000" RAMstart="0x08026400" RAMsize="0x8000" default ="0" style="Keil"/>
+        <algorithm Pname="Cortex-M4"  name="Flash/CY8C6xxA_EFUSE.FLM"       start="0x90700000" size="0x00000400" RAMstart="0x08026400" RAMsize="0x8000" default ="0" style="Keil"/>
+      </device>
+      <device Dname="CY8C614AAZI-S2F04">
+        <compile   define="CY8C614AAZI_S2F04" />
+        <debug     Pname="Cortex-M4"  svd="SVD/psoc6_02.svd"/>
+        <memory    name="IRAM1"       access="rwx" start="0x08000000" size="0x100000" default="1"/>
+        <memory    name="IROM1"       access="rx"  start="0x10000000" size="0x200000" default="1" startup="1"/>
+
+        <algorithm Pname="Cortex-M4"  name="Flash/CY8C6xxA.FLM"             start="0x10000000" size="0x00200000" RAMstart="0x08026400" RAMsize="0x8000" default ="0" style="Keil"/>
+        <algorithm Pname="Cortex-M4"  name="Flash/CY8C6xxA_sect256KB.FLM"   start="0x10000000" size="0x00200000" RAMstart="0x08026400" RAMsize="0x8000" default ="1" style="Keil"/>
+        <algorithm Pname="Cortex-M4"  name="Flash/CY8C6xxA_WFLASH.FLM"      start="0x14000000" size="0x00008000" RAMstart="0x08026400" RAMsize="0x8000" default ="1" style="Keil"/>
+        <algorithm Pname="Cortex-M4"  name="Flash/CY8C6xxA_SFLASH_USER.FLM" start="0x16000800" size="0x00000800" RAMstart="0x08026400" RAMsize="0x8000" default ="1" style="Keil"/>
+        <algorithm Pname="Cortex-M4"  name="Flash/CY8C6xxA_SFLASH_NAR.FLM"  start="0x16001A00" size="0x00000200" RAMstart="0x08026400" RAMsize="0x8000" default ="0" style="Keil"/>
+        <algorithm Pname="Cortex-M4"  name="Flash/CY8C6xxA_SFLASH_PKEY.FLM" start="0x16005A00" size="0x00000C00" RAMstart="0x08026400" RAMsize="0x8000" default ="1" style="Keil"/>
+        <algorithm Pname="Cortex-M4"  name="Flash/CY8C6xxA_SFLASH_TOC2.FLM" start="0x16007C00" size="0x00000400" RAMstart="0x08026400" RAMsize="0x8000" default ="1" style="Keil"/>
+        <algorithm Pname="Cortex-M4"  name="Flash/CY8C6xxA_SMIF.FLM"        start="0x18000000" size="0x08000000" RAMstart="0x08026400" RAMsize="0x8000" default ="0" style="Keil"/>
+        <algorithm Pname="Cortex-M4"  name="Flash/CY8C6xxA_EFUSE.FLM"       start="0x90700000" size="0x00000400" RAMstart="0x08026400" RAMsize="0x8000" default ="0" style="Keil"/>
+      </device>
+      <device Dname="CY8C614AFNI-S2F03">
+        <compile   define="CY8C614AFNI_S2F03" />
+        <debug     Pname="Cortex-M4"  svd="SVD/psoc6_02.svd"/>
+        <memory    name="IRAM1"       access="rwx" start="0x08000000" size="0x100000" default="1"/>
+        <memory    name="IROM1"       access="rx"  start="0x10000000" size="0x200000" default="1" startup="1"/>
+
+        <algorithm Pname="Cortex-M4"  name="Flash/CY8C6xxA.FLM"             start="0x10000000" size="0x00200000" RAMstart="0x08026400" RAMsize="0x8000" default ="0" style="Keil"/>
+        <algorithm Pname="Cortex-M4"  name="Flash/CY8C6xxA_sect256KB.FLM"   start="0x10000000" size="0x00200000" RAMstart="0x08026400" RAMsize="0x8000" default ="1" style="Keil"/>
+        <algorithm Pname="Cortex-M4"  name="Flash/CY8C6xxA_WFLASH.FLM"      start="0x14000000" size="0x00008000" RAMstart="0x08026400" RAMsize="0x8000" default ="1" style="Keil"/>
+        <algorithm Pname="Cortex-M4"  name="Flash/CY8C6xxA_SFLASH_USER.FLM" start="0x16000800" size="0x00000800" RAMstart="0x08026400" RAMsize="0x8000" default ="1" style="Keil"/>
+        <algorithm Pname="Cortex-M4"  name="Flash/CY8C6xxA_SFLASH_NAR.FLM"  start="0x16001A00" size="0x00000200" RAMstart="0x08026400" RAMsize="0x8000" default ="0" style="Keil"/>
+        <algorithm Pname="Cortex-M4"  name="Flash/CY8C6xxA_SFLASH_PKEY.FLM" start="0x16005A00" size="0x00000C00" RAMstart="0x08026400" RAMsize="0x8000" default ="1" style="Keil"/>
+        <algorithm Pname="Cortex-M4"  name="Flash/CY8C6xxA_SFLASH_TOC2.FLM" start="0x16007C00" size="0x00000400" RAMstart="0x08026400" RAMsize="0x8000" default ="1" style="Keil"/>
+        <algorithm Pname="Cortex-M4"  name="Flash/CY8C6xxA_SMIF.FLM"        start="0x18000000" size="0x08000000" RAMstart="0x08026400" RAMsize="0x8000" default ="0" style="Keil"/>
+        <algorithm Pname="Cortex-M4"  name="Flash/CY8C6xxA_EFUSE.FLM"       start="0x90700000" size="0x00000400" RAMstart="0x08026400" RAMsize="0x8000" default ="0" style="Keil"/>
+      </device>
+      <device Dname="CY8C614AAZI-S2F14">
+        <compile   define="CY8C614AAZI_S2F14" />
+        <debug     Pname="Cortex-M4"  svd="SVD/psoc6_02.svd"/>
+        <memory    name="IRAM1"       access="rwx" start="0x08000000" size="0x100000" default="1"/>
+        <memory    name="IROM1"       access="rx"  start="0x10000000" size="0x200000" default="1" startup="1"/>
+
+        <algorithm Pname="Cortex-M4"  name="Flash/CY8C6xxA.FLM"             start="0x10000000" size="0x00200000" RAMstart="0x08026400" RAMsize="0x8000" default ="0" style="Keil"/>
+        <algorithm Pname="Cortex-M4"  name="Flash/CY8C6xxA_sect256KB.FLM"   start="0x10000000" size="0x00200000" RAMstart="0x08026400" RAMsize="0x8000" default ="1" style="Keil"/>
+        <algorithm Pname="Cortex-M4"  name="Flash/CY8C6xxA_WFLASH.FLM"      start="0x14000000" size="0x00008000" RAMstart="0x08026400" RAMsize="0x8000" default ="1" style="Keil"/>
+        <algorithm Pname="Cortex-M4"  name="Flash/CY8C6xxA_SFLASH_USER.FLM" start="0x16000800" size="0x00000800" RAMstart="0x08026400" RAMsize="0x8000" default ="1" style="Keil"/>
+        <algorithm Pname="Cortex-M4"  name="Flash/CY8C6xxA_SFLASH_NAR.FLM"  start="0x16001A00" size="0x00000200" RAMstart="0x08026400" RAMsize="0x8000" default ="0" style="Keil"/>
+        <algorithm Pname="Cortex-M4"  name="Flash/CY8C6xxA_SFLASH_PKEY.FLM" start="0x16005A00" size="0x00000C00" RAMstart="0x08026400" RAMsize="0x8000" default ="1" style="Keil"/>
+        <algorithm Pname="Cortex-M4"  name="Flash/CY8C6xxA_SFLASH_TOC2.FLM" start="0x16007C00" size="0x00000400" RAMstart="0x08026400" RAMsize="0x8000" default ="1" style="Keil"/>
+        <algorithm Pname="Cortex-M4"  name="Flash/CY8C6xxA_SMIF.FLM"        start="0x18000000" size="0x08000000" RAMstart="0x08026400" RAMsize="0x8000" default ="0" style="Keil"/>
+        <algorithm Pname="Cortex-M4"  name="Flash/CY8C6xxA_EFUSE.FLM"       start="0x90700000" size="0x00000400" RAMstart="0x08026400" RAMsize="0x8000" default ="0" style="Keil"/>
+      </device>
+      <device Dname="CY8C614ABZI-S2F44">
+        <compile   define="CY8C614ABZI_S2F44" />
+        <debug     Pname="Cortex-M4"  svd="SVD/psoc6_02.svd"/>
+        <memory    name="IRAM1"       access="rwx" start="0x08000000" size="0x100000" default="1"/>
+        <memory    name="IROM1"       access="rx"  start="0x10000000" size="0x200000" default="1" startup="1"/>
+
+        <algorithm Pname="Cortex-M4"  name="Flash/CY8C6xxA.FLM"             start="0x10000000" size="0x00200000" RAMstart="0x08026400" RAMsize="0x8000" default ="0" style="Keil"/>
+        <algorithm Pname="Cortex-M4"  name="Flash/CY8C6xxA_sect256KB.FLM"   start="0x10000000" size="0x00200000" RAMstart="0x08026400" RAMsize="0x8000" default ="1" style="Keil"/>
+        <algorithm Pname="Cortex-M4"  name="Flash/CY8C6xxA_WFLASH.FLM"      start="0x14000000" size="0x00008000" RAMstart="0x08026400" RAMsize="0x8000" default ="1" style="Keil"/>
+        <algorithm Pname="Cortex-M4"  name="Flash/CY8C6xxA_SFLASH_USER.FLM" start="0x16000800" size="0x00000800" RAMstart="0x08026400" RAMsize="0x8000" default ="1" style="Keil"/>
+        <algorithm Pname="Cortex-M4"  name="Flash/CY8C6xxA_SFLASH_NAR.FLM"  start="0x16001A00" size="0x00000200" RAMstart="0x08026400" RAMsize="0x8000" default ="0" style="Keil"/>
+        <algorithm Pname="Cortex-M4"  name="Flash/CY8C6xxA_SFLASH_PKEY.FLM" start="0x16005A00" size="0x00000C00" RAMstart="0x08026400" RAMsize="0x8000" default ="1" style="Keil"/>
+        <algorithm Pname="Cortex-M4"  name="Flash/CY8C6xxA_SFLASH_TOC2.FLM" start="0x16007C00" size="0x00000400" RAMstart="0x08026400" RAMsize="0x8000" default ="1" style="Keil"/>
+        <algorithm Pname="Cortex-M4"  name="Flash/CY8C6xxA_SMIF.FLM"        start="0x18000000" size="0x08000000" RAMstart="0x08026400" RAMsize="0x8000" default ="0" style="Keil"/>
+        <algorithm Pname="Cortex-M4"  name="Flash/CY8C6xxA_EFUSE.FLM"       start="0x90700000" size="0x00000400" RAMstart="0x08026400" RAMsize="0x8000" default ="0" style="Keil"/>
+      </device>
+      <device Dname="CY8C614AAZI-S2F44">
+        <compile   define="CY8C614AAZI_S2F44" />
+        <debug     Pname="Cortex-M4"  svd="SVD/psoc6_02.svd"/>
+        <memory    name="IRAM1"       access="rwx" start="0x08000000" size="0x100000" default="1"/>
+        <memory    name="IROM1"       access="rx"  start="0x10000000" size="0x200000" default="1" startup="1"/>
+
+        <algorithm Pname="Cortex-M4"  name="Flash/CY8C6xxA.FLM"             start="0x10000000" size="0x00200000" RAMstart="0x08026400" RAMsize="0x8000" default ="0" style="Keil"/>
+        <algorithm Pname="Cortex-M4"  name="Flash/CY8C6xxA_sect256KB.FLM"   start="0x10000000" size="0x00200000" RAMstart="0x08026400" RAMsize="0x8000" default ="1" style="Keil"/>
+        <algorithm Pname="Cortex-M4"  name="Flash/CY8C6xxA_WFLASH.FLM"      start="0x14000000" size="0x00008000" RAMstart="0x08026400" RAMsize="0x8000" default ="1" style="Keil"/>
+        <algorithm Pname="Cortex-M4"  name="Flash/CY8C6xxA_SFLASH_USER.FLM" start="0x16000800" size="0x00000800" RAMstart="0x08026400" RAMsize="0x8000" default ="1" style="Keil"/>
+        <algorithm Pname="Cortex-M4"  name="Flash/CY8C6xxA_SFLASH_NAR.FLM"  start="0x16001A00" size="0x00000200" RAMstart="0x08026400" RAMsize="0x8000" default ="0" style="Keil"/>
+        <algorithm Pname="Cortex-M4"  name="Flash/CY8C6xxA_SFLASH_PKEY.FLM" start="0x16005A00" size="0x00000C00" RAMstart="0x08026400" RAMsize="0x8000" default ="1" style="Keil"/>
+        <algorithm Pname="Cortex-M4"  name="Flash/CY8C6xxA_SFLASH_TOC2.FLM" start="0x16007C00" size="0x00000400" RAMstart="0x08026400" RAMsize="0x8000" default ="1" style="Keil"/>
+        <algorithm Pname="Cortex-M4"  name="Flash/CY8C6xxA_SMIF.FLM"        start="0x18000000" size="0x08000000" RAMstart="0x08026400" RAMsize="0x8000" default ="0" style="Keil"/>
+        <algorithm Pname="Cortex-M4"  name="Flash/CY8C6xxA_EFUSE.FLM"       start="0x90700000" size="0x00000400" RAMstart="0x08026400" RAMsize="0x8000" default ="0" style="Keil"/>
+      </device>
+      <device Dname="CY8C614AFNI-S2F43">
+        <compile   define="CY8C614AFNI_S2F43" />
+        <debug     Pname="Cortex-M4"  svd="SVD/psoc6_02.svd"/>
+        <memory    name="IRAM1"       access="rwx" start="0x08000000" size="0x100000" default="1"/>
+        <memory    name="IROM1"       access="rx"  start="0x10000000" size="0x200000" default="1" startup="1"/>
+
+        <algorithm Pname="Cortex-M4"  name="Flash/CY8C6xxA.FLM"             start="0x10000000" size="0x00200000" RAMstart="0x08026400" RAMsize="0x8000" default ="0" style="Keil"/>
+        <algorithm Pname="Cortex-M4"  name="Flash/CY8C6xxA_sect256KB.FLM"   start="0x10000000" size="0x00200000" RAMstart="0x08026400" RAMsize="0x8000" default ="1" style="Keil"/>
+        <algorithm Pname="Cortex-M4"  name="Flash/CY8C6xxA_WFLASH.FLM"      start="0x14000000" size="0x00008000" RAMstart="0x08026400" RAMsize="0x8000" default ="1" style="Keil"/>
+        <algorithm Pname="Cortex-M4"  name="Flash/CY8C6xxA_SFLASH_USER.FLM" start="0x16000800" size="0x00000800" RAMstart="0x08026400" RAMsize="0x8000" default ="1" style="Keil"/>
+        <algorithm Pname="Cortex-M4"  name="Flash/CY8C6xxA_SFLASH_NAR.FLM"  start="0x16001A00" size="0x00000200" RAMstart="0x08026400" RAMsize="0x8000" default ="0" style="Keil"/>
+        <algorithm Pname="Cortex-M4"  name="Flash/CY8C6xxA_SFLASH_PKEY.FLM" start="0x16005A00" size="0x00000C00" RAMstart="0x08026400" RAMsize="0x8000" default ="1" style="Keil"/>
+        <algorithm Pname="Cortex-M4"  name="Flash/CY8C6xxA_SFLASH_TOC2.FLM" start="0x16007C00" size="0x00000400" RAMstart="0x08026400" RAMsize="0x8000" default ="1" style="Keil"/>
+        <algorithm Pname="Cortex-M4"  name="Flash/CY8C6xxA_SMIF.FLM"        start="0x18000000" size="0x08000000" RAMstart="0x08026400" RAMsize="0x8000" default ="0" style="Keil"/>
+        <algorithm Pname="Cortex-M4"  name="Flash/CY8C6xxA_EFUSE.FLM"       start="0x90700000" size="0x00000400" RAMstart="0x08026400" RAMsize="0x8000" default ="0" style="Keil"/>
+      </device>
+      <device Dname="CY8C6148BZI-S2F44">
+        <compile   define="CY8C6148BZI_S2F44" />
+        <debug     Pname="Cortex-M4"  svd="SVD/psoc6_02.svd"/>
+        <memory    name="IRAM1"       access="rwx" start="0x08000000" size="0x80000" default="1"/>
+        <memory    name="IROM1"       access="rx"  start="0x10000000" size="0x100000" default="1" startup="1"/>
+
+        <algorithm Pname="Cortex-M4"  name="Flash/CY8C6xx8.FLM"             start="0x10000000" size="0x00100000" RAMstart="0x08026400" RAMsize="0x8000" default ="0" style="Keil"/>
+        <algorithm Pname="Cortex-M4"  name="Flash/CY8C6xx8_sect256KB.FLM"   start="0x10000000" size="0x00100000" RAMstart="0x08026400" RAMsize="0x8000" default ="1" style="Keil"/>
+        <algorithm Pname="Cortex-M4"  name="Flash/CY8C6xxA_WFLASH.FLM"      start="0x14000000" size="0x00008000" RAMstart="0x08026400" RAMsize="0x8000" default ="1" style="Keil"/>
+        <algorithm Pname="Cortex-M4"  name="Flash/CY8C6xxA_SFLASH_USER.FLM" start="0x16000800" size="0x00000800" RAMstart="0x08026400" RAMsize="0x8000" default ="1" style="Keil"/>
+        <algorithm Pname="Cortex-M4"  name="Flash/CY8C6xxA_SFLASH_NAR.FLM"  start="0x16001A00" size="0x00000200" RAMstart="0x08026400" RAMsize="0x8000" default ="0" style="Keil"/>
+        <algorithm Pname="Cortex-M4"  name="Flash/CY8C6xxA_SFLASH_PKEY.FLM" start="0x16005A00" size="0x00000C00" RAMstart="0x08026400" RAMsize="0x8000" default ="1" style="Keil"/>
+        <algorithm Pname="Cortex-M4"  name="Flash/CY8C6xxA_SFLASH_TOC2.FLM" start="0x16007C00" size="0x00000400" RAMstart="0x08026400" RAMsize="0x8000" default ="1" style="Keil"/>
+        <algorithm Pname="Cortex-M4"  name="Flash/CY8C6xxA_SMIF.FLM"        start="0x18000000" size="0x08000000" RAMstart="0x08026400" RAMsize="0x8000" default ="0" style="Keil"/>
+        <algorithm Pname="Cortex-M4"  name="Flash/CY8C6xxA_EFUSE.FLM"       start="0x90700000" size="0x00000400" RAMstart="0x08026400" RAMsize="0x8000" default ="0" style="Keil"/>
+      </device>
+      <device Dname="CY8C6148AZI-S2F44">
+        <compile   define="CY8C6148AZI_S2F44" />
+        <debug     Pname="Cortex-M4"  svd="SVD/psoc6_02.svd"/>
+        <memory    name="IRAM1"       access="rwx" start="0x08000000" size="0x80000" default="1"/>
+        <memory    name="IROM1"       access="rx"  start="0x10000000" size="0x100000" default="1" startup="1"/>
+
+        <algorithm Pname="Cortex-M4"  name="Flash/CY8C6xx8.FLM"             start="0x10000000" size="0x00100000" RAMstart="0x08026400" RAMsize="0x8000" default ="0" style="Keil"/>
+        <algorithm Pname="Cortex-M4"  name="Flash/CY8C6xx8_sect256KB.FLM"   start="0x10000000" size="0x00100000" RAMstart="0x08026400" RAMsize="0x8000" default ="1" style="Keil"/>
+        <algorithm Pname="Cortex-M4"  name="Flash/CY8C6xxA_WFLASH.FLM"      start="0x14000000" size="0x00008000" RAMstart="0x08026400" RAMsize="0x8000" default ="1" style="Keil"/>
+        <algorithm Pname="Cortex-M4"  name="Flash/CY8C6xxA_SFLASH_USER.FLM" start="0x16000800" size="0x00000800" RAMstart="0x08026400" RAMsize="0x8000" default ="1" style="Keil"/>
+        <algorithm Pname="Cortex-M4"  name="Flash/CY8C6xxA_SFLASH_NAR.FLM"  start="0x16001A00" size="0x00000200" RAMstart="0x08026400" RAMsize="0x8000" default ="0" style="Keil"/>
+        <algorithm Pname="Cortex-M4"  name="Flash/CY8C6xxA_SFLASH_PKEY.FLM" start="0x16005A00" size="0x00000C00" RAMstart="0x08026400" RAMsize="0x8000" default ="1" style="Keil"/>
+        <algorithm Pname="Cortex-M4"  name="Flash/CY8C6xxA_SFLASH_TOC2.FLM" start="0x16007C00" size="0x00000400" RAMstart="0x08026400" RAMsize="0x8000" default ="1" style="Keil"/>
+        <algorithm Pname="Cortex-M4"  name="Flash/CY8C6xxA_SMIF.FLM"        start="0x18000000" size="0x08000000" RAMstart="0x08026400" RAMsize="0x8000" default ="0" style="Keil"/>
+        <algorithm Pname="Cortex-M4"  name="Flash/CY8C6xxA_EFUSE.FLM"       start="0x90700000" size="0x00000400" RAMstart="0x08026400" RAMsize="0x8000" default ="0" style="Keil"/>
+      </device>
+      <device Dname="CY8C6148FNI-S2F43">
+        <compile   define="CY8C6148FNI_S2F43" />
+        <debug     Pname="Cortex-M4"  svd="SVD/psoc6_02.svd"/>
+        <memory    name="IRAM1"       access="rwx" start="0x08000000" size="0x80000" default="1"/>
+        <memory    name="IROM1"       access="rx"  start="0x10000000" size="0x100000" default="1" startup="1"/>
+
+        <algorithm Pname="Cortex-M4"  name="Flash/CY8C6xx8.FLM"             start="0x10000000" size="0x00100000" RAMstart="0x08026400" RAMsize="0x8000" default ="0" style="Keil"/>
+        <algorithm Pname="Cortex-M4"  name="Flash/CY8C6xx8_sect256KB.FLM"   start="0x10000000" size="0x00100000" RAMstart="0x08026400" RAMsize="0x8000" default ="1" style="Keil"/>
+        <algorithm Pname="Cortex-M4"  name="Flash/CY8C6xxA_WFLASH.FLM"      start="0x14000000" size="0x00008000" RAMstart="0x08026400" RAMsize="0x8000" default ="1" style="Keil"/>
+        <algorithm Pname="Cortex-M4"  name="Flash/CY8C6xxA_SFLASH_USER.FLM" start="0x16000800" size="0x00000800" RAMstart="0x08026400" RAMsize="0x8000" default ="1" style="Keil"/>
+        <algorithm Pname="Cortex-M4"  name="Flash/CY8C6xxA_SFLASH_NAR.FLM"  start="0x16001A00" size="0x00000200" RAMstart="0x08026400" RAMsize="0x8000" default ="0" style="Keil"/>
+        <algorithm Pname="Cortex-M4"  name="Flash/CY8C6xxA_SFLASH_PKEY.FLM" start="0x16005A00" size="0x00000C00" RAMstart="0x08026400" RAMsize="0x8000" default ="1" style="Keil"/>
+        <algorithm Pname="Cortex-M4"  name="Flash/CY8C6xxA_SFLASH_TOC2.FLM" start="0x16007C00" size="0x00000400" RAMstart="0x08026400" RAMsize="0x8000" default ="1" style="Keil"/>
+        <algorithm Pname="Cortex-M4"  name="Flash/CY8C6xxA_SMIF.FLM"        start="0x18000000" size="0x08000000" RAMstart="0x08026400" RAMsize="0x8000" default ="0" style="Keil"/>
+        <algorithm Pname="Cortex-M4"  name="Flash/CY8C6xxA_EFUSE.FLM"       start="0x90700000" size="0x00000400" RAMstart="0x08026400" RAMsize="0x8000" default ="0" style="Keil"/>
+      </device>
+      <device Dname="CY8C6145AZI-S3F72">
+        <compile   define="CY8C6145AZI_S3F72" />
+        <debug     Pname="Cortex-M4"  svd="SVD/psoc6_03.svd"/>
+        <memory    name="IRAM1"       access="rwx" start="0x08000000" size="0x40000" default="1"/>
+        <memory    name="IROM1"       access="rx"  start="0x10000000" size="0x80000" default="1" startup="1"/>
+
+        <algorithm Pname="Cortex-M4"  name="Flash/CY8C6xx5.FLM"             start="0x10000000" size="0x00080000" RAMstart="0x08026400" RAMsize="0x8000" default ="0" style="Keil"/>
+        <algorithm Pname="Cortex-M4"  name="Flash/CY8C6xx5_sect256KB.FLM"   start="0x10000000" size="0x00080000" RAMstart="0x08026400" RAMsize="0x8000" default ="1" style="Keil"/>
+        <algorithm Pname="Cortex-M4"  name="Flash/CY8C6xxA_WFLASH.FLM"      start="0x14000000" size="0x00008000" RAMstart="0x08026400" RAMsize="0x8000" default ="1" style="Keil"/>
+        <algorithm Pname="Cortex-M4"  name="Flash/CY8C6xxA_SFLASH_USER.FLM" start="0x16000800" size="0x00000800" RAMstart="0x08026400" RAMsize="0x8000" default ="1" style="Keil"/>
+        <algorithm Pname="Cortex-M4"  name="Flash/CY8C6xxA_SFLASH_NAR.FLM"  start="0x16001A00" size="0x00000200" RAMstart="0x08026400" RAMsize="0x8000" default ="0" style="Keil"/>
+        <algorithm Pname="Cortex-M4"  name="Flash/CY8C6xxA_SFLASH_PKEY.FLM" start="0x16005A00" size="0x00000C00" RAMstart="0x08026400" RAMsize="0x8000" default ="1" style="Keil"/>
+        <algorithm Pname="Cortex-M4"  name="Flash/CY8C6xxA_SFLASH_TOC2.FLM" start="0x16007C00" size="0x00000400" RAMstart="0x08026400" RAMsize="0x8000" default ="1" style="Keil"/>
+        <algorithm Pname="Cortex-M4"  name="Flash/CY8C6xxA_SMIF.FLM"        start="0x18000000" size="0x08000000" RAMstart="0x08026400" RAMsize="0x8000" default ="0" style="Keil"/>
+        <algorithm Pname="Cortex-M4"  name="Flash/CY8C6xxA_EFUSE.FLM"       start="0x90700000" size="0x00000400" RAMstart="0x08026400" RAMsize="0x8000" default ="0" style="Keil"/>
+      </device>
+      <device Dname="CY8C6145LQI-S3F72">
+        <compile   define="CY8C6145LQI_S3F72" />
+        <debug     Pname="Cortex-M4"  svd="SVD/psoc6_03.svd"/>
+        <memory    name="IRAM1"       access="rwx" start="0x08000000" size="0x40000" default="1"/>
+        <memory    name="IROM1"       access="rx"  start="0x10000000" size="0x80000" default="1" startup="1"/>
+
+        <algorithm Pname="Cortex-M4"  name="Flash/CY8C6xx5.FLM"             start="0x10000000" size="0x00080000" RAMstart="0x08026400" RAMsize="0x8000" default ="0" style="Keil"/>
+        <algorithm Pname="Cortex-M4"  name="Flash/CY8C6xx5_sect256KB.FLM"   start="0x10000000" size="0x00080000" RAMstart="0x08026400" RAMsize="0x8000" default ="1" style="Keil"/>
+        <algorithm Pname="Cortex-M4"  name="Flash/CY8C6xxA_WFLASH.FLM"      start="0x14000000" size="0x00008000" RAMstart="0x08026400" RAMsize="0x8000" default ="1" style="Keil"/>
+        <algorithm Pname="Cortex-M4"  name="Flash/CY8C6xxA_SFLASH_USER.FLM" start="0x16000800" size="0x00000800" RAMstart="0x08026400" RAMsize="0x8000" default ="1" style="Keil"/>
+        <algorithm Pname="Cortex-M4"  name="Flash/CY8C6xxA_SFLASH_NAR.FLM"  start="0x16001A00" size="0x00000200" RAMstart="0x08026400" RAMsize="0x8000" default ="0" style="Keil"/>
+        <algorithm Pname="Cortex-M4"  name="Flash/CY8C6xxA_SFLASH_PKEY.FLM" start="0x16005A00" size="0x00000C00" RAMstart="0x08026400" RAMsize="0x8000" default ="1" style="Keil"/>
+        <algorithm Pname="Cortex-M4"  name="Flash/CY8C6xxA_SFLASH_TOC2.FLM" start="0x16007C00" size="0x00000400" RAMstart="0x08026400" RAMsize="0x8000" default ="1" style="Keil"/>
+        <algorithm Pname="Cortex-M4"  name="Flash/CY8C6xxA_SMIF.FLM"        start="0x18000000" size="0x08000000" RAMstart="0x08026400" RAMsize="0x8000" default ="0" style="Keil"/>
+        <algorithm Pname="Cortex-M4"  name="Flash/CY8C6xxA_EFUSE.FLM"       start="0x90700000" size="0x00000400" RAMstart="0x08026400" RAMsize="0x8000" default ="0" style="Keil"/>
+      </device>
+      <device Dname="CY8C6145FNI-S3F71">
+        <compile   define="CY8C6145FNI_S3F71" />
+        <debug     Pname="Cortex-M4"  svd="SVD/psoc6_03.svd"/>
+        <memory    name="IRAM1"       access="rwx" start="0x08000000" size="0x40000" default="1"/>
+        <memory    name="IROM1"       access="rx"  start="0x10000000" size="0x80000" default="1" startup="1"/>
+
+        <algorithm Pname="Cortex-M4"  name="Flash/CY8C6xx5.FLM"             start="0x10000000" size="0x00080000" RAMstart="0x08026400" RAMsize="0x8000" default ="0" style="Keil"/>
+        <algorithm Pname="Cortex-M4"  name="Flash/CY8C6xx5_sect256KB.FLM"   start="0x10000000" size="0x00080000" RAMstart="0x08026400" RAMsize="0x8000" default ="1" style="Keil"/>
+        <algorithm Pname="Cortex-M4"  name="Flash/CY8C6xxA_WFLASH.FLM"      start="0x14000000" size="0x00008000" RAMstart="0x08026400" RAMsize="0x8000" default ="1" style="Keil"/>
+        <algorithm Pname="Cortex-M4"  name="Flash/CY8C6xxA_SFLASH_USER.FLM" start="0x16000800" size="0x00000800" RAMstart="0x08026400" RAMsize="0x8000" default ="1" style="Keil"/>
+        <algorithm Pname="Cortex-M4"  name="Flash/CY8C6xxA_SFLASH_NAR.FLM"  start="0x16001A00" size="0x00000200" RAMstart="0x08026400" RAMsize="0x8000" default ="0" style="Keil"/>
+        <algorithm Pname="Cortex-M4"  name="Flash/CY8C6xxA_SFLASH_PKEY.FLM" start="0x16005A00" size="0x00000C00" RAMstart="0x08026400" RAMsize="0x8000" default ="1" style="Keil"/>
+        <algorithm Pname="Cortex-M4"  name="Flash/CY8C6xxA_SFLASH_TOC2.FLM" start="0x16007C00" size="0x00000400" RAMstart="0x08026400" RAMsize="0x8000" default ="1" style="Keil"/>
+        <algorithm Pname="Cortex-M4"  name="Flash/CY8C6xxA_SMIF.FLM"        start="0x18000000" size="0x08000000" RAMstart="0x08026400" RAMsize="0x8000" default ="0" style="Keil"/>
+        <algorithm Pname="Cortex-M4"  name="Flash/CY8C6xxA_EFUSE.FLM"       start="0x90700000" size="0x00000400" RAMstart="0x08026400" RAMsize="0x8000" default ="0" style="Keil"/>
+      </device>
+      <device Dname="CY8C6145AZI-S3F62">
+        <compile   define="CY8C6145AZI_S3F62" />
+        <debug     Pname="Cortex-M4"  svd="SVD/psoc6_03.svd"/>
+        <memory    name="IRAM1"       access="rwx" start="0x08000000" size="0x40000" default="1"/>
+        <memory    name="IROM1"       access="rx"  start="0x10000000" size="0x80000" default="1" startup="1"/>
+
+        <algorithm Pname="Cortex-M4"  name="Flash/CY8C6xx5.FLM"             start="0x10000000" size="0x00080000" RAMstart="0x08026400" RAMsize="0x8000" default ="0" style="Keil"/>
+        <algorithm Pname="Cortex-M4"  name="Flash/CY8C6xx5_sect256KB.FLM"   start="0x10000000" size="0x00080000" RAMstart="0x08026400" RAMsize="0x8000" default ="1" style="Keil"/>
+        <algorithm Pname="Cortex-M4"  name="Flash/CY8C6xxA_WFLASH.FLM"      start="0x14000000" size="0x00008000" RAMstart="0x08026400" RAMsize="0x8000" default ="1" style="Keil"/>
+        <algorithm Pname="Cortex-M4"  name="Flash/CY8C6xxA_SFLASH_USER.FLM" start="0x16000800" size="0x00000800" RAMstart="0x08026400" RAMsize="0x8000" default ="1" style="Keil"/>
+        <algorithm Pname="Cortex-M4"  name="Flash/CY8C6xxA_SFLASH_NAR.FLM"  start="0x16001A00" size="0x00000200" RAMstart="0x08026400" RAMsize="0x8000" default ="0" style="Keil"/>
+        <algorithm Pname="Cortex-M4"  name="Flash/CY8C6xxA_SFLASH_PKEY.FLM" start="0x16005A00" size="0x00000C00" RAMstart="0x08026400" RAMsize="0x8000" default ="1" style="Keil"/>
+        <algorithm Pname="Cortex-M4"  name="Flash/CY8C6xxA_SFLASH_TOC2.FLM" start="0x16007C00" size="0x00000400" RAMstart="0x08026400" RAMsize="0x8000" default ="1" style="Keil"/>
+        <algorithm Pname="Cortex-M4"  name="Flash/CY8C6xxA_SMIF.FLM"        start="0x18000000" size="0x08000000" RAMstart="0x08026400" RAMsize="0x8000" default ="0" style="Keil"/>
+        <algorithm Pname="Cortex-M4"  name="Flash/CY8C6xxA_EFUSE.FLM"       start="0x90700000" size="0x00000400" RAMstart="0x08026400" RAMsize="0x8000" default ="0" style="Keil"/>
+      </device>
+      <device Dname="CY8C6145LQI-S3F62">
+        <compile   define="CY8C6145LQI_S3F62" />
+        <debug     Pname="Cortex-M4"  svd="SVD/psoc6_03.svd"/>
+        <memory    name="IRAM1"       access="rwx" start="0x08000000" size="0x40000" default="1"/>
+        <memory    name="IROM1"       access="rx"  start="0x10000000" size="0x80000" default="1" startup="1"/>
+
+        <algorithm Pname="Cortex-M4"  name="Flash/CY8C6xx5.FLM"             start="0x10000000" size="0x00080000" RAMstart="0x08026400" RAMsize="0x8000" default ="0" style="Keil"/>
+        <algorithm Pname="Cortex-M4"  name="Flash/CY8C6xx5_sect256KB.FLM"   start="0x10000000" size="0x00080000" RAMstart="0x08026400" RAMsize="0x8000" default ="1" style="Keil"/>
+        <algorithm Pname="Cortex-M4"  name="Flash/CY8C6xxA_WFLASH.FLM"      start="0x14000000" size="0x00008000" RAMstart="0x08026400" RAMsize="0x8000" default ="1" style="Keil"/>
+        <algorithm Pname="Cortex-M4"  name="Flash/CY8C6xxA_SFLASH_USER.FLM" start="0x16000800" size="0x00000800" RAMstart="0x08026400" RAMsize="0x8000" default ="1" style="Keil"/>
+        <algorithm Pname="Cortex-M4"  name="Flash/CY8C6xxA_SFLASH_NAR.FLM"  start="0x16001A00" size="0x00000200" RAMstart="0x08026400" RAMsize="0x8000" default ="0" style="Keil"/>
+        <algorithm Pname="Cortex-M4"  name="Flash/CY8C6xxA_SFLASH_PKEY.FLM" start="0x16005A00" size="0x00000C00" RAMstart="0x08026400" RAMsize="0x8000" default ="1" style="Keil"/>
+        <algorithm Pname="Cortex-M4"  name="Flash/CY8C6xxA_SFLASH_TOC2.FLM" start="0x16007C00" size="0x00000400" RAMstart="0x08026400" RAMsize="0x8000" default ="1" style="Keil"/>
+        <algorithm Pname="Cortex-M4"  name="Flash/CY8C6xxA_SMIF.FLM"        start="0x18000000" size="0x08000000" RAMstart="0x08026400" RAMsize="0x8000" default ="0" style="Keil"/>
+        <algorithm Pname="Cortex-M4"  name="Flash/CY8C6xxA_EFUSE.FLM"       start="0x90700000" size="0x00000400" RAMstart="0x08026400" RAMsize="0x8000" default ="0" style="Keil"/>
+      </device>
+      <device Dname="CY8C6145AZI-S3F42">
+        <compile   define="CY8C6145AZI_S3F42" />
+        <debug     Pname="Cortex-M4"  svd="SVD/psoc6_03.svd"/>
+        <memory    name="IRAM1"       access="rwx" start="0x08000000" size="0x40000" default="1"/>
+        <memory    name="IROM1"       access="rx"  start="0x10000000" size="0x80000" default="1" startup="1"/>
+
+        <algorithm Pname="Cortex-M4"  name="Flash/CY8C6xx5.FLM"             start="0x10000000" size="0x00080000" RAMstart="0x08026400" RAMsize="0x8000" default ="0" style="Keil"/>
+        <algorithm Pname="Cortex-M4"  name="Flash/CY8C6xx5_sect256KB.FLM"   start="0x10000000" size="0x00080000" RAMstart="0x08026400" RAMsize="0x8000" default ="1" style="Keil"/>
+        <algorithm Pname="Cortex-M4"  name="Flash/CY8C6xxA_WFLASH.FLM"      start="0x14000000" size="0x00008000" RAMstart="0x08026400" RAMsize="0x8000" default ="1" style="Keil"/>
+        <algorithm Pname="Cortex-M4"  name="Flash/CY8C6xxA_SFLASH_USER.FLM" start="0x16000800" size="0x00000800" RAMstart="0x08026400" RAMsize="0x8000" default ="1" style="Keil"/>
+        <algorithm Pname="Cortex-M4"  name="Flash/CY8C6xxA_SFLASH_NAR.FLM"  start="0x16001A00" size="0x00000200" RAMstart="0x08026400" RAMsize="0x8000" default ="0" style="Keil"/>
+        <algorithm Pname="Cortex-M4"  name="Flash/CY8C6xxA_SFLASH_PKEY.FLM" start="0x16005A00" size="0x00000C00" RAMstart="0x08026400" RAMsize="0x8000" default ="1" style="Keil"/>
+        <algorithm Pname="Cortex-M4"  name="Flash/CY8C6xxA_SFLASH_TOC2.FLM" start="0x16007C00" size="0x00000400" RAMstart="0x08026400" RAMsize="0x8000" default ="1" style="Keil"/>
+        <algorithm Pname="Cortex-M4"  name="Flash/CY8C6xxA_SMIF.FLM"        start="0x18000000" size="0x08000000" RAMstart="0x08026400" RAMsize="0x8000" default ="0" style="Keil"/>
+        <algorithm Pname="Cortex-M4"  name="Flash/CY8C6xxA_EFUSE.FLM"       start="0x90700000" size="0x00000400" RAMstart="0x08026400" RAMsize="0x8000" default ="0" style="Keil"/>
+      </device>
+      <device Dname="CY8C6145LQI-S3F42">
+        <compile   define="CY8C6145LQI_S3F42" />
+        <debug     Pname="Cortex-M4"  svd="SVD/psoc6_03.svd"/>
+        <memory    name="IRAM1"       access="rwx" start="0x08000000" size="0x40000" default="1"/>
+        <memory    name="IROM1"       access="rx"  start="0x10000000" size="0x80000" default="1" startup="1"/>
+
+        <algorithm Pname="Cortex-M4"  name="Flash/CY8C6xx5.FLM"             start="0x10000000" size="0x00080000" RAMstart="0x08026400" RAMsize="0x8000" default ="0" style="Keil"/>
+        <algorithm Pname="Cortex-M4"  name="Flash/CY8C6xx5_sect256KB.FLM"   start="0x10000000" size="0x00080000" RAMstart="0x08026400" RAMsize="0x8000" default ="1" style="Keil"/>
+        <algorithm Pname="Cortex-M4"  name="Flash/CY8C6xxA_WFLASH.FLM"      start="0x14000000" size="0x00008000" RAMstart="0x08026400" RAMsize="0x8000" default ="1" style="Keil"/>
+        <algorithm Pname="Cortex-M4"  name="Flash/CY8C6xxA_SFLASH_USER.FLM" start="0x16000800" size="0x00000800" RAMstart="0x08026400" RAMsize="0x8000" default ="1" style="Keil"/>
+        <algorithm Pname="Cortex-M4"  name="Flash/CY8C6xxA_SFLASH_NAR.FLM"  start="0x16001A00" size="0x00000200" RAMstart="0x08026400" RAMsize="0x8000" default ="0" style="Keil"/>
+        <algorithm Pname="Cortex-M4"  name="Flash/CY8C6xxA_SFLASH_PKEY.FLM" start="0x16005A00" size="0x00000C00" RAMstart="0x08026400" RAMsize="0x8000" default ="1" style="Keil"/>
+        <algorithm Pname="Cortex-M4"  name="Flash/CY8C6xxA_SFLASH_TOC2.FLM" start="0x16007C00" size="0x00000400" RAMstart="0x08026400" RAMsize="0x8000" default ="1" style="Keil"/>
+        <algorithm Pname="Cortex-M4"  name="Flash/CY8C6xxA_SMIF.FLM"        start="0x18000000" size="0x08000000" RAMstart="0x08026400" RAMsize="0x8000" default ="0" style="Keil"/>
+        <algorithm Pname="Cortex-M4"  name="Flash/CY8C6xxA_EFUSE.FLM"       start="0x90700000" size="0x00000400" RAMstart="0x08026400" RAMsize="0x8000" default ="0" style="Keil"/>
+      </device>
+      <device Dname="CY8C6145FNI-S3F41">
+        <compile   define="CY8C6145FNI_S3F41" />
+        <debug     Pname="Cortex-M4"  svd="SVD/psoc6_03.svd"/>
+        <memory    name="IRAM1"       access="rwx" start="0x08000000" size="0x40000" default="1"/>
+        <memory    name="IROM1"       access="rx"  start="0x10000000" size="0x80000" default="1" startup="1"/>
+
+        <algorithm Pname="Cortex-M4"  name="Flash/CY8C6xx5.FLM"             start="0x10000000" size="0x00080000" RAMstart="0x08026400" RAMsize="0x8000" default ="0" style="Keil"/>
+        <algorithm Pname="Cortex-M4"  name="Flash/CY8C6xx5_sect256KB.FLM"   start="0x10000000" size="0x00080000" RAMstart="0x08026400" RAMsize="0x8000" default ="1" style="Keil"/>
+        <algorithm Pname="Cortex-M4"  name="Flash/CY8C6xxA_WFLASH.FLM"      start="0x14000000" size="0x00008000" RAMstart="0x08026400" RAMsize="0x8000" default ="1" style="Keil"/>
+        <algorithm Pname="Cortex-M4"  name="Flash/CY8C6xxA_SFLASH_USER.FLM" start="0x16000800" size="0x00000800" RAMstart="0x08026400" RAMsize="0x8000" default ="1" style="Keil"/>
+        <algorithm Pname="Cortex-M4"  name="Flash/CY8C6xxA_SFLASH_NAR.FLM"  start="0x16001A00" size="0x00000200" RAMstart="0x08026400" RAMsize="0x8000" default ="0" style="Keil"/>
+        <algorithm Pname="Cortex-M4"  name="Flash/CY8C6xxA_SFLASH_PKEY.FLM" start="0x16005A00" size="0x00000C00" RAMstart="0x08026400" RAMsize="0x8000" default ="1" style="Keil"/>
+        <algorithm Pname="Cortex-M4"  name="Flash/CY8C6xxA_SFLASH_TOC2.FLM" start="0x16007C00" size="0x00000400" RAMstart="0x08026400" RAMsize="0x8000" default ="1" style="Keil"/>
+        <algorithm Pname="Cortex-M4"  name="Flash/CY8C6xxA_SMIF.FLM"        start="0x18000000" size="0x08000000" RAMstart="0x08026400" RAMsize="0x8000" default ="0" style="Keil"/>
+        <algorithm Pname="Cortex-M4"  name="Flash/CY8C6xxA_EFUSE.FLM"       start="0x90700000" size="0x00000400" RAMstart="0x08026400" RAMsize="0x8000" default ="0" style="Keil"/>
+      </device>
+      <device Dname="CY8C6145AZI-S3F12">
+        <compile   define="CY8C6145AZI_S3F12" />
+        <debug     Pname="Cortex-M4"  svd="SVD/psoc6_03.svd"/>
+        <memory    name="IRAM1"       access="rwx" start="0x08000000" size="0x40000" default="1"/>
+        <memory    name="IROM1"       access="rx"  start="0x10000000" size="0x80000" default="1" startup="1"/>
+
+        <algorithm Pname="Cortex-M4"  name="Flash/CY8C6xx5.FLM"             start="0x10000000" size="0x00080000" RAMstart="0x08026400" RAMsize="0x8000" default ="0" style="Keil"/>
+        <algorithm Pname="Cortex-M4"  name="Flash/CY8C6xx5_sect256KB.FLM"   start="0x10000000" size="0x00080000" RAMstart="0x08026400" RAMsize="0x8000" default ="1" style="Keil"/>
+        <algorithm Pname="Cortex-M4"  name="Flash/CY8C6xxA_WFLASH.FLM"      start="0x14000000" size="0x00008000" RAMstart="0x08026400" RAMsize="0x8000" default ="1" style="Keil"/>
+        <algorithm Pname="Cortex-M4"  name="Flash/CY8C6xxA_SFLASH_USER.FLM" start="0x16000800" size="0x00000800" RAMstart="0x08026400" RAMsize="0x8000" default ="1" style="Keil"/>
+        <algorithm Pname="Cortex-M4"  name="Flash/CY8C6xxA_SFLASH_NAR.FLM"  start="0x16001A00" size="0x00000200" RAMstart="0x08026400" RAMsize="0x8000" default ="0" style="Keil"/>
+        <algorithm Pname="Cortex-M4"  name="Flash/CY8C6xxA_SFLASH_PKEY.FLM" start="0x16005A00" size="0x00000C00" RAMstart="0x08026400" RAMsize="0x8000" default ="1" style="Keil"/>
+        <algorithm Pname="Cortex-M4"  name="Flash/CY8C6xxA_SFLASH_TOC2.FLM" start="0x16007C00" size="0x00000400" RAMstart="0x08026400" RAMsize="0x8000" default ="1" style="Keil"/>
+        <algorithm Pname="Cortex-M4"  name="Flash/CY8C6xxA_SMIF.FLM"        start="0x18000000" size="0x08000000" RAMstart="0x08026400" RAMsize="0x8000" default ="0" style="Keil"/>
+        <algorithm Pname="Cortex-M4"  name="Flash/CY8C6xxA_EFUSE.FLM"       start="0x90700000" size="0x00000400" RAMstart="0x08026400" RAMsize="0x8000" default ="0" style="Keil"/>
+      </device>
+      <device Dname="CY8C6145LQI-S3F12">
+        <compile   define="CY8C6145LQI_S3F12" />
+        <debug     Pname="Cortex-M4"  svd="SVD/psoc6_03.svd"/>
+        <memory    name="IRAM1"       access="rwx" start="0x08000000" size="0x40000" default="1"/>
+        <memory    name="IROM1"       access="rx"  start="0x10000000" size="0x80000" default="1" startup="1"/>
+
+        <algorithm Pname="Cortex-M4"  name="Flash/CY8C6xx5.FLM"             start="0x10000000" size="0x00080000" RAMstart="0x08026400" RAMsize="0x8000" default ="0" style="Keil"/>
+        <algorithm Pname="Cortex-M4"  name="Flash/CY8C6xx5_sect256KB.FLM"   start="0x10000000" size="0x00080000" RAMstart="0x08026400" RAMsize="0x8000" default ="1" style="Keil"/>
+        <algorithm Pname="Cortex-M4"  name="Flash/CY8C6xxA_WFLASH.FLM"      start="0x14000000" size="0x00008000" RAMstart="0x08026400" RAMsize="0x8000" default ="1" style="Keil"/>
+        <algorithm Pname="Cortex-M4"  name="Flash/CY8C6xxA_SFLASH_USER.FLM" start="0x16000800" size="0x00000800" RAMstart="0x08026400" RAMsize="0x8000" default ="1" style="Keil"/>
+        <algorithm Pname="Cortex-M4"  name="Flash/CY8C6xxA_SFLASH_NAR.FLM"  start="0x16001A00" size="0x00000200" RAMstart="0x08026400" RAMsize="0x8000" default ="0" style="Keil"/>
+        <algorithm Pname="Cortex-M4"  name="Flash/CY8C6xxA_SFLASH_PKEY.FLM" start="0x16005A00" size="0x00000C00" RAMstart="0x08026400" RAMsize="0x8000" default ="1" style="Keil"/>
+        <algorithm Pname="Cortex-M4"  name="Flash/CY8C6xxA_SFLASH_TOC2.FLM" start="0x16007C00" size="0x00000400" RAMstart="0x08026400" RAMsize="0x8000" default ="1" style="Keil"/>
+        <algorithm Pname="Cortex-M4"  name="Flash/CY8C6xxA_SMIF.FLM"        start="0x18000000" size="0x08000000" RAMstart="0x08026400" RAMsize="0x8000" default ="0" style="Keil"/>
+        <algorithm Pname="Cortex-M4"  name="Flash/CY8C6xxA_EFUSE.FLM"       start="0x90700000" size="0x00000400" RAMstart="0x08026400" RAMsize="0x8000" default ="0" style="Keil"/>
+      </device>
+      <device Dname="CY8C6145FNI-S3F11">
+        <compile   define="CY8C6145FNI_S3F11" />
+        <debug     Pname="Cortex-M4"  svd="SVD/psoc6_03.svd"/>
+        <memory    name="IRAM1"       access="rwx" start="0x08000000" size="0x40000" default="1"/>
+        <memory    name="IROM1"       access="rx"  start="0x10000000" size="0x80000" default="1" startup="1"/>
+
+        <algorithm Pname="Cortex-M4"  name="Flash/CY8C6xx5.FLM"             start="0x10000000" size="0x00080000" RAMstart="0x08026400" RAMsize="0x8000" default ="0" style="Keil"/>
+        <algorithm Pname="Cortex-M4"  name="Flash/CY8C6xx5_sect256KB.FLM"   start="0x10000000" size="0x00080000" RAMstart="0x08026400" RAMsize="0x8000" default ="1" style="Keil"/>
+        <algorithm Pname="Cortex-M4"  name="Flash/CY8C6xxA_WFLASH.FLM"      start="0x14000000" size="0x00008000" RAMstart="0x08026400" RAMsize="0x8000" default ="1" style="Keil"/>
+        <algorithm Pname="Cortex-M4"  name="Flash/CY8C6xxA_SFLASH_USER.FLM" start="0x16000800" size="0x00000800" RAMstart="0x08026400" RAMsize="0x8000" default ="1" style="Keil"/>
+        <algorithm Pname="Cortex-M4"  name="Flash/CY8C6xxA_SFLASH_NAR.FLM"  start="0x16001A00" size="0x00000200" RAMstart="0x08026400" RAMsize="0x8000" default ="0" style="Keil"/>
+        <algorithm Pname="Cortex-M4"  name="Flash/CY8C6xxA_SFLASH_PKEY.FLM" start="0x16005A00" size="0x00000C00" RAMstart="0x08026400" RAMsize="0x8000" default ="1" style="Keil"/>
+        <algorithm Pname="Cortex-M4"  name="Flash/CY8C6xxA_SFLASH_TOC2.FLM" start="0x16007C00" size="0x00000400" RAMstart="0x08026400" RAMsize="0x8000" default ="1" style="Keil"/>
+        <algorithm Pname="Cortex-M4"  name="Flash/CY8C6xxA_SMIF.FLM"        start="0x18000000" size="0x08000000" RAMstart="0x08026400" RAMsize="0x8000" default ="0" style="Keil"/>
+        <algorithm Pname="Cortex-M4"  name="Flash/CY8C6xxA_EFUSE.FLM"       start="0x90700000" size="0x00000400" RAMstart="0x08026400" RAMsize="0x8000" default ="0" style="Keil"/>
+      </device>
+      <device Dname="CY8C6145AZI-S3F02">
+        <compile   define="CY8C6145AZI_S3F02" />
+        <debug     Pname="Cortex-M4"  svd="SVD/psoc6_03.svd"/>
+        <memory    name="IRAM1"       access="rwx" start="0x08000000" size="0x40000" default="1"/>
+        <memory    name="IROM1"       access="rx"  start="0x10000000" size="0x80000" default="1" startup="1"/>
+
+        <algorithm Pname="Cortex-M4"  name="Flash/CY8C6xx5.FLM"             start="0x10000000" size="0x00080000" RAMstart="0x08026400" RAMsize="0x8000" default ="0" style="Keil"/>
+        <algorithm Pname="Cortex-M4"  name="Flash/CY8C6xx5_sect256KB.FLM"   start="0x10000000" size="0x00080000" RAMstart="0x08026400" RAMsize="0x8000" default ="1" style="Keil"/>
+        <algorithm Pname="Cortex-M4"  name="Flash/CY8C6xxA_WFLASH.FLM"      start="0x14000000" size="0x00008000" RAMstart="0x08026400" RAMsize="0x8000" default ="1" style="Keil"/>
+        <algorithm Pname="Cortex-M4"  name="Flash/CY8C6xxA_SFLASH_USER.FLM" start="0x16000800" size="0x00000800" RAMstart="0x08026400" RAMsize="0x8000" default ="1" style="Keil"/>
+        <algorithm Pname="Cortex-M4"  name="Flash/CY8C6xxA_SFLASH_NAR.FLM"  start="0x16001A00" size="0x00000200" RAMstart="0x08026400" RAMsize="0x8000" default ="0" style="Keil"/>
+        <algorithm Pname="Cortex-M4"  name="Flash/CY8C6xxA_SFLASH_PKEY.FLM" start="0x16005A00" size="0x00000C00" RAMstart="0x08026400" RAMsize="0x8000" default ="1" style="Keil"/>
+        <algorithm Pname="Cortex-M4"  name="Flash/CY8C6xxA_SFLASH_TOC2.FLM" start="0x16007C00" size="0x00000400" RAMstart="0x08026400" RAMsize="0x8000" default ="1" style="Keil"/>
+        <algorithm Pname="Cortex-M4"  name="Flash/CY8C6xxA_SMIF.FLM"        start="0x18000000" size="0x08000000" RAMstart="0x08026400" RAMsize="0x8000" default ="0" style="Keil"/>
+        <algorithm Pname="Cortex-M4"  name="Flash/CY8C6xxA_EFUSE.FLM"       start="0x90700000" size="0x00000400" RAMstart="0x08026400" RAMsize="0x8000" default ="0" style="Keil"/>
+      </device>
+      <device Dname="CY8C6145LQI-S3F02">
+        <compile   define="CY8C6145LQI_S3F02" />
+        <debug     Pname="Cortex-M4"  svd="SVD/psoc6_03.svd"/>
+        <memory    name="IRAM1"       access="rwx" start="0x08000000" size="0x40000" default="1"/>
+        <memory    name="IROM1"       access="rx"  start="0x10000000" size="0x80000" default="1" startup="1"/>
+
+        <algorithm Pname="Cortex-M4"  name="Flash/CY8C6xx5.FLM"             start="0x10000000" size="0x00080000" RAMstart="0x08026400" RAMsize="0x8000" default ="0" style="Keil"/>
+        <algorithm Pname="Cortex-M4"  name="Flash/CY8C6xx5_sect256KB.FLM"   start="0x10000000" size="0x00080000" RAMstart="0x08026400" RAMsize="0x8000" default ="1" style="Keil"/>
+        <algorithm Pname="Cortex-M4"  name="Flash/CY8C6xxA_WFLASH.FLM"      start="0x14000000" size="0x00008000" RAMstart="0x08026400" RAMsize="0x8000" default ="1" style="Keil"/>
+        <algorithm Pname="Cortex-M4"  name="Flash/CY8C6xxA_SFLASH_USER.FLM" start="0x16000800" size="0x00000800" RAMstart="0x08026400" RAMsize="0x8000" default ="1" style="Keil"/>
+        <algorithm Pname="Cortex-M4"  name="Flash/CY8C6xxA_SFLASH_NAR.FLM"  start="0x16001A00" size="0x00000200" RAMstart="0x08026400" RAMsize="0x8000" default ="0" style="Keil"/>
+        <algorithm Pname="Cortex-M4"  name="Flash/CY8C6xxA_SFLASH_PKEY.FLM" start="0x16005A00" size="0x00000C00" RAMstart="0x08026400" RAMsize="0x8000" default ="1" style="Keil"/>
+        <algorithm Pname="Cortex-M4"  name="Flash/CY8C6xxA_SFLASH_TOC2.FLM" start="0x16007C00" size="0x00000400" RAMstart="0x08026400" RAMsize="0x8000" default ="1" style="Keil"/>
+        <algorithm Pname="Cortex-M4"  name="Flash/CY8C6xxA_SMIF.FLM"        start="0x18000000" size="0x08000000" RAMstart="0x08026400" RAMsize="0x8000" default ="0" style="Keil"/>
+        <algorithm Pname="Cortex-M4"  name="Flash/CY8C6xxA_EFUSE.FLM"       start="0x90700000" size="0x00000400" RAMstart="0x08026400" RAMsize="0x8000" default ="0" style="Keil"/>
+      </device>
+      <device Dname="CY8C6144AZI-S4F92">
+        <compile   define="CY8C6144AZI_S4F92" />
+        <debug     Pname="Cortex-M4"  svd="SVD/psoc6_04.svd"/>
+        <memory    name="IRAM1"       access="rwx" start="0x08000000" size="0x20000" default="1"/>
+        <memory    name="IROM1"       access="rx"  start="0x10000000" size="0x40000" default="1" startup="1"/>
+
+        <algorithm Pname="Cortex-M4"  name="Flash/CY8C6xx4.FLM"             start="0x10000000" size="0x00040000" RAMstart="0x08002400" RAMsize="0x8000" default ="0" style="Keil"/>
+        <algorithm Pname="Cortex-M4"  name="Flash/CY8C6xx4_sect128KB.FLM"   start="0x10000000" size="0x00040000" RAMstart="0x08002400" RAMsize="0x8000" default ="1" style="Keil"/>
+        <algorithm Pname="Cortex-M4"  name="Flash/CY8C6xxA_SFLASH_USER.FLM" start="0x16000800" size="0x00000800" RAMstart="0x08002400" RAMsize="0x8000" default ="1" style="Keil"/>
+        <algorithm Pname="Cortex-M4"  name="Flash/CY8C6xxA_SFLASH_NAR.FLM"  start="0x16001A00" size="0x00000200" RAMstart="0x08002400" RAMsize="0x8000" default ="0" style="Keil"/>
+        <algorithm Pname="Cortex-M4"  name="Flash/CY8C6xxA_SFLASH_PKEY.FLM" start="0x16005A00" size="0x00000C00" RAMstart="0x08002400" RAMsize="0x8000" default ="1" style="Keil"/>
+        <algorithm Pname="Cortex-M4"  name="Flash/CY8C6xxA_SFLASH_TOC2.FLM" start="0x16007C00" size="0x00000400" RAMstart="0x08002400" RAMsize="0x8000" default ="1" style="Keil"/>
+        <algorithm Pname="Cortex-M4"  name="Flash/CY8C6xxA_SMIF.FLM"        start="0x18000000" size="0x08000000" RAMstart="0x08002400" RAMsize="0x8000" default ="0" style="Keil"/>
+        <algorithm Pname="Cortex-M4"  name="Flash/CY8C6xxA_EFUSE.FLM"       start="0x90700000" size="0x00000400" RAMstart="0x08002400" RAMsize="0x8000" default ="0" style="Keil"/>
+      </device>
+      <device Dname="CY8C6144LQI-S4F92">
+        <compile   define="CY8C6144LQI_S4F92" />
+        <debug     Pname="Cortex-M4"  svd="SVD/psoc6_04.svd"/>
+        <memory    name="IRAM1"       access="rwx" start="0x08000000" size="0x20000" default="1"/>
+        <memory    name="IROM1"       access="rx"  start="0x10000000" size="0x40000" default="1" startup="1"/>
+
+        <algorithm Pname="Cortex-M4"  name="Flash/CY8C6xx4.FLM"             start="0x10000000" size="0x00040000" RAMstart="0x08002400" RAMsize="0x8000" default ="0" style="Keil"/>
+        <algorithm Pname="Cortex-M4"  name="Flash/CY8C6xx4_sect128KB.FLM"   start="0x10000000" size="0x00040000" RAMstart="0x08002400" RAMsize="0x8000" default ="1" style="Keil"/>
+        <algorithm Pname="Cortex-M4"  name="Flash/CY8C6xxA_SFLASH_USER.FLM" start="0x16000800" size="0x00000800" RAMstart="0x08002400" RAMsize="0x8000" default ="1" style="Keil"/>
+        <algorithm Pname="Cortex-M4"  name="Flash/CY8C6xxA_SFLASH_NAR.FLM"  start="0x16001A00" size="0x00000200" RAMstart="0x08002400" RAMsize="0x8000" default ="0" style="Keil"/>
+        <algorithm Pname="Cortex-M4"  name="Flash/CY8C6xxA_SFLASH_PKEY.FLM" start="0x16005A00" size="0x00000C00" RAMstart="0x08002400" RAMsize="0x8000" default ="1" style="Keil"/>
+        <algorithm Pname="Cortex-M4"  name="Flash/CY8C6xxA_SFLASH_TOC2.FLM" start="0x16007C00" size="0x00000400" RAMstart="0x08002400" RAMsize="0x8000" default ="1" style="Keil"/>
+        <algorithm Pname="Cortex-M4"  name="Flash/CY8C6xxA_SMIF.FLM"        start="0x18000000" size="0x08000000" RAMstart="0x08002400" RAMsize="0x8000" default ="0" style="Keil"/>
+        <algorithm Pname="Cortex-M4"  name="Flash/CY8C6xxA_EFUSE.FLM"       start="0x90700000" size="0x00000400" RAMstart="0x08002400" RAMsize="0x8000" default ="0" style="Keil"/>
+      </device>
+      <device Dname="CY8C6144AZI-S4F93">
+        <compile   define="CY8C6144AZI_S4F93" />
+        <debug     Pname="Cortex-M4"  svd="SVD/psoc6_04.svd"/>
+        <memory    name="IRAM1"       access="rwx" start="0x08000000" size="0x20000" default="1"/>
+        <memory    name="IROM1"       access="rx"  start="0x10000000" size="0x40000" default="1" startup="1"/>
+
+        <algorithm Pname="Cortex-M4"  name="Flash/CY8C6xx4.FLM"             start="0x10000000" size="0x00040000" RAMstart="0x08002400" RAMsize="0x8000" default ="0" style="Keil"/>
+        <algorithm Pname="Cortex-M4"  name="Flash/CY8C6xx4_sect128KB.FLM"   start="0x10000000" size="0x00040000" RAMstart="0x08002400" RAMsize="0x8000" default ="1" style="Keil"/>
+        <algorithm Pname="Cortex-M4"  name="Flash/CY8C6xxA_SFLASH_USER.FLM" start="0x16000800" size="0x00000800" RAMstart="0x08002400" RAMsize="0x8000" default ="1" style="Keil"/>
+        <algorithm Pname="Cortex-M4"  name="Flash/CY8C6xxA_SFLASH_NAR.FLM"  start="0x16001A00" size="0x00000200" RAMstart="0x08002400" RAMsize="0x8000" default ="0" style="Keil"/>
+        <algorithm Pname="Cortex-M4"  name="Flash/CY8C6xxA_SFLASH_PKEY.FLM" start="0x16005A00" size="0x00000C00" RAMstart="0x08002400" RAMsize="0x8000" default ="1" style="Keil"/>
+        <algorithm Pname="Cortex-M4"  name="Flash/CY8C6xxA_SFLASH_TOC2.FLM" start="0x16007C00" size="0x00000400" RAMstart="0x08002400" RAMsize="0x8000" default ="1" style="Keil"/>
+        <algorithm Pname="Cortex-M4"  name="Flash/CY8C6xxA_SMIF.FLM"        start="0x18000000" size="0x08000000" RAMstart="0x08002400" RAMsize="0x8000" default ="0" style="Keil"/>
+        <algorithm Pname="Cortex-M4"  name="Flash/CY8C6xxA_EFUSE.FLM"       start="0x90700000" size="0x00000400" RAMstart="0x08002400" RAMsize="0x8000" default ="0" style="Keil"/>
+      </device>
+      <device Dname="CY8C6144AZI-S4F82">
+        <compile   define="CY8C6144AZI_S4F82" />
+        <debug     Pname="Cortex-M4"  svd="SVD/psoc6_04.svd"/>
+        <memory    name="IRAM1"       access="rwx" start="0x08000000" size="0x20000" default="1"/>
+        <memory    name="IROM1"       access="rx"  start="0x10000000" size="0x40000" default="1" startup="1"/>
+
+        <algorithm Pname="Cortex-M4"  name="Flash/CY8C6xx4.FLM"             start="0x10000000" size="0x00040000" RAMstart="0x08002400" RAMsize="0x8000" default ="0" style="Keil"/>
+        <algorithm Pname="Cortex-M4"  name="Flash/CY8C6xx4_sect128KB.FLM"   start="0x10000000" size="0x00040000" RAMstart="0x08002400" RAMsize="0x8000" default ="1" style="Keil"/>
+        <algorithm Pname="Cortex-M4"  name="Flash/CY8C6xxA_SFLASH_USER.FLM" start="0x16000800" size="0x00000800" RAMstart="0x08002400" RAMsize="0x8000" default ="1" style="Keil"/>
+        <algorithm Pname="Cortex-M4"  name="Flash/CY8C6xxA_SFLASH_NAR.FLM"  start="0x16001A00" size="0x00000200" RAMstart="0x08002400" RAMsize="0x8000" default ="0" style="Keil"/>
+        <algorithm Pname="Cortex-M4"  name="Flash/CY8C6xxA_SFLASH_PKEY.FLM" start="0x16005A00" size="0x00000C00" RAMstart="0x08002400" RAMsize="0x8000" default ="1" style="Keil"/>
+        <algorithm Pname="Cortex-M4"  name="Flash/CY8C6xxA_SFLASH_TOC2.FLM" start="0x16007C00" size="0x00000400" RAMstart="0x08002400" RAMsize="0x8000" default ="1" style="Keil"/>
+        <algorithm Pname="Cortex-M4"  name="Flash/CY8C6xxA_SMIF.FLM"        start="0x18000000" size="0x08000000" RAMstart="0x08002400" RAMsize="0x8000" default ="0" style="Keil"/>
+        <algorithm Pname="Cortex-M4"  name="Flash/CY8C6xxA_EFUSE.FLM"       start="0x90700000" size="0x00000400" RAMstart="0x08002400" RAMsize="0x8000" default ="0" style="Keil"/>
+      </device>
+      <device Dname="CY8C6144LQI-S4F82">
+        <compile   define="CY8C6144LQI_S4F82" />
+        <debug     Pname="Cortex-M4"  svd="SVD/psoc6_04.svd"/>
+        <memory    name="IRAM1"       access="rwx" start="0x08000000" size="0x20000" default="1"/>
+        <memory    name="IROM1"       access="rx"  start="0x10000000" size="0x40000" default="1" startup="1"/>
+
+        <algorithm Pname="Cortex-M4"  name="Flash/CY8C6xx4.FLM"             start="0x10000000" size="0x00040000" RAMstart="0x08002400" RAMsize="0x8000" default ="0" style="Keil"/>
+        <algorithm Pname="Cortex-M4"  name="Flash/CY8C6xx4_sect128KB.FLM"   start="0x10000000" size="0x00040000" RAMstart="0x08002400" RAMsize="0x8000" default ="1" style="Keil"/>
+        <algorithm Pname="Cortex-M4"  name="Flash/CY8C6xxA_SFLASH_USER.FLM" start="0x16000800" size="0x00000800" RAMstart="0x08002400" RAMsize="0x8000" default ="1" style="Keil"/>
+        <algorithm Pname="Cortex-M4"  name="Flash/CY8C6xxA_SFLASH_NAR.FLM"  start="0x16001A00" size="0x00000200" RAMstart="0x08002400" RAMsize="0x8000" default ="0" style="Keil"/>
+        <algorithm Pname="Cortex-M4"  name="Flash/CY8C6xxA_SFLASH_PKEY.FLM" start="0x16005A00" size="0x00000C00" RAMstart="0x08002400" RAMsize="0x8000" default ="1" style="Keil"/>
+        <algorithm Pname="Cortex-M4"  name="Flash/CY8C6xxA_SFLASH_TOC2.FLM" start="0x16007C00" size="0x00000400" RAMstart="0x08002400" RAMsize="0x8000" default ="1" style="Keil"/>
+        <algorithm Pname="Cortex-M4"  name="Flash/CY8C6xxA_SMIF.FLM"        start="0x18000000" size="0x08000000" RAMstart="0x08002400" RAMsize="0x8000" default ="0" style="Keil"/>
+        <algorithm Pname="Cortex-M4"  name="Flash/CY8C6xxA_EFUSE.FLM"       start="0x90700000" size="0x00000400" RAMstart="0x08002400" RAMsize="0x8000" default ="0" style="Keil"/>
+      </device>
+      <device Dname="CY8C6144AZI-S4F83">
+        <compile   define="CY8C6144AZI_S4F83" />
+        <debug     Pname="Cortex-M4"  svd="SVD/psoc6_04.svd"/>
+        <memory    name="IRAM1"       access="rwx" start="0x08000000" size="0x20000" default="1"/>
+        <memory    name="IROM1"       access="rx"  start="0x10000000" size="0x40000" default="1" startup="1"/>
+
+        <algorithm Pname="Cortex-M4"  name="Flash/CY8C6xx4.FLM"             start="0x10000000" size="0x00040000" RAMstart="0x08002400" RAMsize="0x8000" default ="0" style="Keil"/>
+        <algorithm Pname="Cortex-M4"  name="Flash/CY8C6xx4_sect128KB.FLM"   start="0x10000000" size="0x00040000" RAMstart="0x08002400" RAMsize="0x8000" default ="1" style="Keil"/>
+        <algorithm Pname="Cortex-M4"  name="Flash/CY8C6xxA_SFLASH_USER.FLM" start="0x16000800" size="0x00000800" RAMstart="0x08002400" RAMsize="0x8000" default ="1" style="Keil"/>
+        <algorithm Pname="Cortex-M4"  name="Flash/CY8C6xxA_SFLASH_NAR.FLM"  start="0x16001A00" size="0x00000200" RAMstart="0x08002400" RAMsize="0x8000" default ="0" style="Keil"/>
+        <algorithm Pname="Cortex-M4"  name="Flash/CY8C6xxA_SFLASH_PKEY.FLM" start="0x16005A00" size="0x00000C00" RAMstart="0x08002400" RAMsize="0x8000" default ="1" style="Keil"/>
+        <algorithm Pname="Cortex-M4"  name="Flash/CY8C6xxA_SFLASH_TOC2.FLM" start="0x16007C00" size="0x00000400" RAMstart="0x08002400" RAMsize="0x8000" default ="1" style="Keil"/>
+        <algorithm Pname="Cortex-M4"  name="Flash/CY8C6xxA_SMIF.FLM"        start="0x18000000" size="0x08000000" RAMstart="0x08002400" RAMsize="0x8000" default ="0" style="Keil"/>
+        <algorithm Pname="Cortex-M4"  name="Flash/CY8C6xxA_EFUSE.FLM"       start="0x90700000" size="0x00000400" RAMstart="0x08002400" RAMsize="0x8000" default ="0" style="Keil"/>
+      </device>
+      <device Dname="CY8C6144AZI-S4F62">
+        <compile   define="CY8C6144AZI_S4F62" />
+        <debug     Pname="Cortex-M4"  svd="SVD/psoc6_04.svd"/>
+        <memory    name="IRAM1"       access="rwx" start="0x08000000" size="0x20000" default="1"/>
+        <memory    name="IROM1"       access="rx"  start="0x10000000" size="0x40000" default="1" startup="1"/>
+
+        <algorithm Pname="Cortex-M4"  name="Flash/CY8C6xx4.FLM"             start="0x10000000" size="0x00040000" RAMstart="0x08002400" RAMsize="0x8000" default ="0" style="Keil"/>
+        <algorithm Pname="Cortex-M4"  name="Flash/CY8C6xx4_sect128KB.FLM"   start="0x10000000" size="0x00040000" RAMstart="0x08002400" RAMsize="0x8000" default ="1" style="Keil"/>
+        <algorithm Pname="Cortex-M4"  name="Flash/CY8C6xxA_SFLASH_USER.FLM" start="0x16000800" size="0x00000800" RAMstart="0x08002400" RAMsize="0x8000" default ="1" style="Keil"/>
+        <algorithm Pname="Cortex-M4"  name="Flash/CY8C6xxA_SFLASH_NAR.FLM"  start="0x16001A00" size="0x00000200" RAMstart="0x08002400" RAMsize="0x8000" default ="0" style="Keil"/>
+        <algorithm Pname="Cortex-M4"  name="Flash/CY8C6xxA_SFLASH_PKEY.FLM" start="0x16005A00" size="0x00000C00" RAMstart="0x08002400" RAMsize="0x8000" default ="1" style="Keil"/>
+        <algorithm Pname="Cortex-M4"  name="Flash/CY8C6xxA_SFLASH_TOC2.FLM" start="0x16007C00" size="0x00000400" RAMstart="0x08002400" RAMsize="0x8000" default ="1" style="Keil"/>
+        <algorithm Pname="Cortex-M4"  name="Flash/CY8C6xxA_SMIF.FLM"        start="0x18000000" size="0x08000000" RAMstart="0x08002400" RAMsize="0x8000" default ="0" style="Keil"/>
+        <algorithm Pname="Cortex-M4"  name="Flash/CY8C6xxA_EFUSE.FLM"       start="0x90700000" size="0x00000400" RAMstart="0x08002400" RAMsize="0x8000" default ="0" style="Keil"/>
+      </device>
+      <device Dname="CY8C6144LQI-S4F62">
+        <compile   define="CY8C6144LQI_S4F62" />
+        <debug     Pname="Cortex-M4"  svd="SVD/psoc6_04.svd"/>
+        <memory    name="IRAM1"       access="rwx" start="0x08000000" size="0x20000" default="1"/>
+        <memory    name="IROM1"       access="rx"  start="0x10000000" size="0x40000" default="1" startup="1"/>
+
+        <algorithm Pname="Cortex-M4"  name="Flash/CY8C6xx4.FLM"             start="0x10000000" size="0x00040000" RAMstart="0x08002400" RAMsize="0x8000" default ="0" style="Keil"/>
+        <algorithm Pname="Cortex-M4"  name="Flash/CY8C6xx4_sect128KB.FLM"   start="0x10000000" size="0x00040000" RAMstart="0x08002400" RAMsize="0x8000" default ="1" style="Keil"/>
+        <algorithm Pname="Cortex-M4"  name="Flash/CY8C6xxA_SFLASH_USER.FLM" start="0x16000800" size="0x00000800" RAMstart="0x08002400" RAMsize="0x8000" default ="1" style="Keil"/>
+        <algorithm Pname="Cortex-M4"  name="Flash/CY8C6xxA_SFLASH_NAR.FLM"  start="0x16001A00" size="0x00000200" RAMstart="0x08002400" RAMsize="0x8000" default ="0" style="Keil"/>
+        <algorithm Pname="Cortex-M4"  name="Flash/CY8C6xxA_SFLASH_PKEY.FLM" start="0x16005A00" size="0x00000C00" RAMstart="0x08002400" RAMsize="0x8000" default ="1" style="Keil"/>
+        <algorithm Pname="Cortex-M4"  name="Flash/CY8C6xxA_SFLASH_TOC2.FLM" start="0x16007C00" size="0x00000400" RAMstart="0x08002400" RAMsize="0x8000" default ="1" style="Keil"/>
+        <algorithm Pname="Cortex-M4"  name="Flash/CY8C6xxA_SMIF.FLM"        start="0x18000000" size="0x08000000" RAMstart="0x08002400" RAMsize="0x8000" default ="0" style="Keil"/>
+        <algorithm Pname="Cortex-M4"  name="Flash/CY8C6xxA_EFUSE.FLM"       start="0x90700000" size="0x00000400" RAMstart="0x08002400" RAMsize="0x8000" default ="0" style="Keil"/>
+      </device>
+      <device Dname="CY8C6144AZI-S4F12">
+        <compile   define="CY8C6144AZI_S4F12" />
+        <debug     Pname="Cortex-M4"  svd="SVD/psoc6_04.svd"/>
+        <memory    name="IRAM1"       access="rwx" start="0x08000000" size="0x20000" default="1"/>
+        <memory    name="IROM1"       access="rx"  start="0x10000000" size="0x40000" default="1" startup="1"/>
+
+        <algorithm Pname="Cortex-M4"  name="Flash/CY8C6xx4.FLM"             start="0x10000000" size="0x00040000" RAMstart="0x08002400" RAMsize="0x8000" default ="0" style="Keil"/>
+        <algorithm Pname="Cortex-M4"  name="Flash/CY8C6xx4_sect128KB.FLM"   start="0x10000000" size="0x00040000" RAMstart="0x08002400" RAMsize="0x8000" default ="1" style="Keil"/>
+        <algorithm Pname="Cortex-M4"  name="Flash/CY8C6xxA_SFLASH_USER.FLM" start="0x16000800" size="0x00000800" RAMstart="0x08002400" RAMsize="0x8000" default ="1" style="Keil"/>
+        <algorithm Pname="Cortex-M4"  name="Flash/CY8C6xxA_SFLASH_NAR.FLM"  start="0x16001A00" size="0x00000200" RAMstart="0x08002400" RAMsize="0x8000" default ="0" style="Keil"/>
+        <algorithm Pname="Cortex-M4"  name="Flash/CY8C6xxA_SFLASH_PKEY.FLM" start="0x16005A00" size="0x00000C00" RAMstart="0x08002400" RAMsize="0x8000" default ="1" style="Keil"/>
+        <algorithm Pname="Cortex-M4"  name="Flash/CY8C6xxA_SFLASH_TOC2.FLM" start="0x16007C00" size="0x00000400" RAMstart="0x08002400" RAMsize="0x8000" default ="1" style="Keil"/>
+        <algorithm Pname="Cortex-M4"  name="Flash/CY8C6xxA_SMIF.FLM"        start="0x18000000" size="0x08000000" RAMstart="0x08002400" RAMsize="0x8000" default ="0" style="Keil"/>
+        <algorithm Pname="Cortex-M4"  name="Flash/CY8C6xxA_EFUSE.FLM"       start="0x90700000" size="0x00000400" RAMstart="0x08002400" RAMsize="0x8000" default ="0" style="Keil"/>
+      </device>
+      <device Dname="CY8C6144LQI-S4F12">
+        <compile   define="CY8C6144LQI_S4F12" />
+        <debug     Pname="Cortex-M4"  svd="SVD/psoc6_04.svd"/>
+        <memory    name="IRAM1"       access="rwx" start="0x08000000" size="0x20000" default="1"/>
+        <memory    name="IROM1"       access="rx"  start="0x10000000" size="0x40000" default="1" startup="1"/>
+
+        <algorithm Pname="Cortex-M4"  name="Flash/CY8C6xx4.FLM"             start="0x10000000" size="0x00040000" RAMstart="0x08002400" RAMsize="0x8000" default ="0" style="Keil"/>
+        <algorithm Pname="Cortex-M4"  name="Flash/CY8C6xx4_sect128KB.FLM"   start="0x10000000" size="0x00040000" RAMstart="0x08002400" RAMsize="0x8000" default ="1" style="Keil"/>
+        <algorithm Pname="Cortex-M4"  name="Flash/CY8C6xxA_SFLASH_USER.FLM" start="0x16000800" size="0x00000800" RAMstart="0x08002400" RAMsize="0x8000" default ="1" style="Keil"/>
+        <algorithm Pname="Cortex-M4"  name="Flash/CY8C6xxA_SFLASH_NAR.FLM"  start="0x16001A00" size="0x00000200" RAMstart="0x08002400" RAMsize="0x8000" default ="0" style="Keil"/>
+        <algorithm Pname="Cortex-M4"  name="Flash/CY8C6xxA_SFLASH_PKEY.FLM" start="0x16005A00" size="0x00000C00" RAMstart="0x08002400" RAMsize="0x8000" default ="1" style="Keil"/>
+        <algorithm Pname="Cortex-M4"  name="Flash/CY8C6xxA_SFLASH_TOC2.FLM" start="0x16007C00" size="0x00000400" RAMstart="0x08002400" RAMsize="0x8000" default ="1" style="Keil"/>
+        <algorithm Pname="Cortex-M4"  name="Flash/CY8C6xxA_SMIF.FLM"        start="0x18000000" size="0x08000000" RAMstart="0x08002400" RAMsize="0x8000" default ="0" style="Keil"/>
+        <algorithm Pname="Cortex-M4"  name="Flash/CY8C6xxA_EFUSE.FLM"       start="0x90700000" size="0x00000400" RAMstart="0x08002400" RAMsize="0x8000" default ="0" style="Keil"/>
+      </device>
     </family>
     <family Dfamily="PSoC 62" Dvendor="Cypress:19">
       <processor Pname="Cortex-M0p" Dcore="Cortex-M0+" DcoreVersion="r0p1" Dfpu="NO_FPU" Dmpu="MPU" Dendian="Little-endian" Dclock="100000000" />
@@ -512,75 +988,59 @@
       <debug Pname="Cortex-M0p" __ap="1" defaultResetSequence="ResetProcessor"/> <!-- Cortex-M0+ is auxiliary CPU, hence default is local CPU reset -->
       <sequences>
         <sequence name="DebugPortStart">
-
           <block info="Read DP CTRL/STAT">
             __var SW_DP_ABORT  = 0x0;
             __var DP_CTRL_STAT = 0x4;
             __var DP_SELECT    = 0x8;
             __var powered_down = 0;
-            // Switch to DP Register Bank 0
-            WriteDP(DP_SELECT, __ap &lt;&lt; 24);     // Explicitly set APSEL to current AP selection
-
+            // Switch to DP Register Bank 0. Explicitly set APSEL to current AP selection
+            WriteDP(DP_SELECT, __ap &lt;&lt; 24);
             // Read DP CTRL/STAT Register and check if CSYSPWRUPACK and CDBGPWRUPACK bits are set
             powered_down = ((ReadDP(DP_CTRL_STAT) &amp; 0xA0000000) != 0xA0000000);
           </block>
-
           <control if="powered_down">
-
             <block info="Power Up System &amp; Debug">
               // Request Debug/System Power-Up
+              // Ignore error here: even there is a polling in the next block, CMSIS-DAP transports reads DP->RDBUFF register
+              // right after write to DP->CTRL_STAT. This will fail for some cases - for example if device is waking from DeepSleep.
+              __errorcontrol = 1;
               WriteDP(DP_CTRL_STAT, 0x50000000);
+              __errorcontrol = 0;
             </block>
-
             <!-- Wait for Power-Up Request to be acknowledged -->
             <control while="(ReadDP(DP_CTRL_STAT) &amp; 0xA0000000) != 0xA0000000" timeout="1000000" info="Wait for power acknowledged"/>
-
-
             <!-- CDBGRSTREQ on PSoC6 behaves like Power-On Reset. Not desired when starting the Debug Port
-
             <block info="Debug Reset">
               __errorcontrol = 1;
               // Request Debug Reset
               WriteDP(DP_CTRL_STAT, 0x54000000);
-
               // CDBGRSTREQ is equivalent to Power-On Reset and fully reboots the device.
               // Depending on the user application the reboot can take up to 600ms.
               DAP_Delay(600000);
               __errorcontrol = 0;
             </block>
             -->
-
             <!-- Wait for Debug Reset to be acknowledged, don't issue error on timeout to deal with improperly connected Debug Reset -->
             <!-- <control while="(ReadDP(DP_CTRL_STAT) &amp; 0xA8000000) != 0xA8000000" timeout="300000" info="Wait for Debug Reset Acknowledge"/> -->
-
-
             <!-- JTAG Specific Part of sequence -->
             <control if="(__protocol &amp; 0xFFFF) == 1">
-
               <block info="JTAG: Clear Sticky Bits">
                 // Init AP Transfer Mode, Transaction Counter, and Lane Mask (Normal Transfer Mode, Include all Byte Lanes)
                 // Additionally clear STICKYORUN, STICKYCMP, and STICKYERR bits by writing '1'
                 WriteDP(DP_CTRL_STAT, 0x50000F32);
               </block>
-
             </control>
-
             <!-- SWD Specific Part of sequence -->
             <control if="(__protocol &amp; 0xFFFF) == 2">
-
               <block info="SWD: Init SWD &amp; Clear Sticky Bits">
                 // Init AP Transfer Mode, Transaction Counter, and Lane Mask (Normal Transfer Mode, Include all Byte Lanes)
                 WriteDP(DP_CTRL_STAT, 0x50000F00);
-
                 // Clear WDATAERR, STICKYORUN, STICKYCMP, and STICKYERR bits of CTRL/STAT Register by write to ABORT register
                 WriteDP(SW_DP_ABORT, 0x0000001E);
               </block>
             </control>
-
           </control>
-
         </sequence>
-
         <!-- HW Reset causes a reboot of the device which also resets debug.
              - Using this as a prereset is OK to potentially wake up the system from DeepSleep.
              - Using this in the middle of the debug session will break the connection unless recovery
@@ -590,46 +1050,35 @@
           <block>
             __var nReset      = 0x80;
             __var canReadPins = 0;
-
             // Deassert nRESET line
             canReadPins = (DAP_SWJ_Pins(0x00, nReset, 0) != 0xFFFFFFFF);
           </block>
-
           <!-- Keep reset active for 50 ms -->
           <control while="1" timeout="50000"/>
           <control if="canReadPins">
-
             <!-- Assert nRESET line and wait max. 1s for recovery -->
             <control while="(DAP_SWJ_Pins(nReset, nReset, 0) &amp; nReset) == 0" timeout="1000000"/>
-
           </control>
-
           <control if="!canReadPins">
-
             <block>
               // Assert nRESET line
               DAP_SWJ_Pins(nReset, nReset, 0);
             </block>
-
             <!-- Wait 100ms for recovery if nRESET not readable -->
             <control while="1" timeout="100000"/>
           </control>
-
           <block>
             // Give the PSoC6 bootloader time to finish (can be up to 600ms)
             DAP_Delay(600000);
           </block>
         </sequence>
-
         <!-- Cortex-M0+ Processor reset via PSoC6 CPU Sub-System Controller. Cortex-M0+ doesn't have VECTRESET. -->
         <sequence name="ResetProcessor" Pname="Cortex-M0p">
           <block>
             __var CPUSS_CM0_CTL_Addr = 0x40210000;    // CM0+ Control Register
             __var DHCSR_Addr = 0xE000EDF0;
-
             Write32(CPUSS_CM0_CTL_Addr, 0x05FA0000);  // Reset CM0+
           </block>
-
           <!-- Reset Recovery: Wait for CPUSS_CM0_CTL to  bit to clear on read -->
           <control while="(Read32(DHCSR_Addr) &amp; 0x02000000)" timeout="500000"/>
         </sequence>
@@ -920,110 +1369,6 @@
         <algorithm Pname="Cortex-M4"  name="Flash/CY8C6xxx_SMIF.FLM"        start="0x18000000" size="0x08000000" RAMstart="0x08026400" RAMsize="0x8000" default ="0" style="Keil"/>
         <algorithm Pname="Cortex-M4"  name="Flash/CY8C6xxx_EFUSE.FLM"       start="0x90700000" size="0x00000400" RAMstart="0x08026400" RAMsize="0x8000" default ="0" style="Keil"/>
       </device>
-      <device Dname="CY8C624ABZI-D44">
-        <compile   define="CY8C624ABZI_D44" />
-        <debug     Pname="Cortex-M4"  svd="SVD/psoc6_02.svd"/>
-        <debug     Pname="Cortex-M0p" svd="SVD/psoc6_02.svd"/>
-        <memory    name="IRAM1"       access="rwx" start="0x08000000" size="0x100000" default="1"/>
-        <memory    name="IROM1"       access="rx"  start="0x10000000" size="0x200000" default="1" startup="1"/>
-
-        <algorithm Pname="Cortex-M0p" name="Flash/CY8C6xxA.FLM"             start="0x10000000" size="0x00200000" RAMstart="0x08002400" RAMsize="0x8000" default ="0" style="Keil"/>
-        <algorithm Pname="Cortex-M0p" name="Flash/CY8C6xxA_sect256KB.FLM"   start="0x10000000" size="0x00200000" RAMstart="0x08002400" RAMsize="0x8000" default ="1" style="Keil"/>
-        <algorithm Pname="Cortex-M0p" name="Flash/CY8C6xxA_WFLASH.FLM"      start="0x14000000" size="0x00008000" RAMstart="0x08002400" RAMsize="0x8000" default ="1" style="Keil"/>
-        <algorithm Pname="Cortex-M0p" name="Flash/CY8C6xxA_SFLASH_USER.FLM" start="0x16000800" size="0x00000800" RAMstart="0x08002400" RAMsize="0x8000" default ="1" style="Keil"/>
-        <algorithm Pname="Cortex-M0p" name="Flash/CY8C6xxA_SFLASH_NAR.FLM"  start="0x16001A00" size="0x00000200" RAMstart="0x08002400" RAMsize="0x8000" default ="0" style="Keil"/>
-        <algorithm Pname="Cortex-M0p" name="Flash/CY8C6xxA_SFLASH_PKEY.FLM" start="0x16005A00" size="0x00000C00" RAMstart="0x08002400" RAMsize="0x8000" default ="1" style="Keil"/>
-        <algorithm Pname="Cortex-M0p" name="Flash/CY8C6xxA_SFLASH_TOC2.FLM" start="0x16007C00" size="0x00000400" RAMstart="0x08002400" RAMsize="0x8000" default ="1" style="Keil"/>
-        <algorithm Pname="Cortex-M0p" name="Flash/CY8C6xxA_SMIF.FLM"        start="0x18000000" size="0x08000000" RAMstart="0x08002400" RAMsize="0x8000" default ="0" style="Keil"/>
-        <algorithm Pname="Cortex-M0p" name="Flash/CY8C6xxA_EFUSE.FLM"       start="0x90700000" size="0x00000400" RAMstart="0x08002400" RAMsize="0x8000" default ="0" style="Keil"/>
-        <algorithm Pname="Cortex-M4"  name="Flash/CY8C6xxA.FLM"             start="0x10000000" size="0x00200000" RAMstart="0x08026400" RAMsize="0x8000" default ="0" style="Keil"/>
-        <algorithm Pname="Cortex-M4"  name="Flash/CY8C6xxA_sect256KB.FLM"   start="0x10000000" size="0x00200000" RAMstart="0x08026400" RAMsize="0x8000" default ="1" style="Keil"/>
-        <algorithm Pname="Cortex-M4"  name="Flash/CY8C6xxA_WFLASH.FLM"      start="0x14000000" size="0x00008000" RAMstart="0x08026400" RAMsize="0x8000" default ="1" style="Keil"/>
-        <algorithm Pname="Cortex-M4"  name="Flash/CY8C6xxA_SFLASH_USER.FLM" start="0x16000800" size="0x00000800" RAMstart="0x08026400" RAMsize="0x8000" default ="1" style="Keil"/>
-        <algorithm Pname="Cortex-M4"  name="Flash/CY8C6xxA_SFLASH_NAR.FLM"  start="0x16001A00" size="0x00000200" RAMstart="0x08026400" RAMsize="0x8000" default ="0" style="Keil"/>
-        <algorithm Pname="Cortex-M4"  name="Flash/CY8C6xxA_SFLASH_PKEY.FLM" start="0x16005A00" size="0x00000C00" RAMstart="0x08026400" RAMsize="0x8000" default ="1" style="Keil"/>
-        <algorithm Pname="Cortex-M4"  name="Flash/CY8C6xxA_SFLASH_TOC2.FLM" start="0x16007C00" size="0x00000400" RAMstart="0x08026400" RAMsize="0x8000" default ="1" style="Keil"/>
-        <algorithm Pname="Cortex-M4"  name="Flash/CY8C6xxA_SMIF.FLM"        start="0x18000000" size="0x08000000" RAMstart="0x08026400" RAMsize="0x8000" default ="0" style="Keil"/>
-        <algorithm Pname="Cortex-M4"  name="Flash/CY8C6xxA_EFUSE.FLM"       start="0x90700000" size="0x00000400" RAMstart="0x08026400" RAMsize="0x8000" default ="0" style="Keil"/>
-      </device>
-      <device Dname="CY8C624AAZI-D44">
-        <compile   define="CY8C624AAZI_D44" />
-        <debug     Pname="Cortex-M4"  svd="SVD/psoc6_02.svd"/>
-        <debug     Pname="Cortex-M0p" svd="SVD/psoc6_02.svd"/>
-        <memory    name="IRAM1"       access="rwx" start="0x08000000" size="0x100000" default="1"/>
-        <memory    name="IROM1"       access="rx"  start="0x10000000" size="0x200000" default="1" startup="1"/>
-
-        <algorithm Pname="Cortex-M0p" name="Flash/CY8C6xxA.FLM"             start="0x10000000" size="0x00200000" RAMstart="0x08002400" RAMsize="0x8000" default ="0" style="Keil"/>
-        <algorithm Pname="Cortex-M0p" name="Flash/CY8C6xxA_sect256KB.FLM"   start="0x10000000" size="0x00200000" RAMstart="0x08002400" RAMsize="0x8000" default ="1" style="Keil"/>
-        <algorithm Pname="Cortex-M0p" name="Flash/CY8C6xxA_WFLASH.FLM"      start="0x14000000" size="0x00008000" RAMstart="0x08002400" RAMsize="0x8000" default ="1" style="Keil"/>
-        <algorithm Pname="Cortex-M0p" name="Flash/CY8C6xxA_SFLASH_USER.FLM" start="0x16000800" size="0x00000800" RAMstart="0x08002400" RAMsize="0x8000" default ="1" style="Keil"/>
-        <algorithm Pname="Cortex-M0p" name="Flash/CY8C6xxA_SFLASH_NAR.FLM"  start="0x16001A00" size="0x00000200" RAMstart="0x08002400" RAMsize="0x8000" default ="0" style="Keil"/>
-        <algorithm Pname="Cortex-M0p" name="Flash/CY8C6xxA_SFLASH_PKEY.FLM" start="0x16005A00" size="0x00000C00" RAMstart="0x08002400" RAMsize="0x8000" default ="1" style="Keil"/>
-        <algorithm Pname="Cortex-M0p" name="Flash/CY8C6xxA_SFLASH_TOC2.FLM" start="0x16007C00" size="0x00000400" RAMstart="0x08002400" RAMsize="0x8000" default ="1" style="Keil"/>
-        <algorithm Pname="Cortex-M0p" name="Flash/CY8C6xxA_SMIF.FLM"        start="0x18000000" size="0x08000000" RAMstart="0x08002400" RAMsize="0x8000" default ="0" style="Keil"/>
-        <algorithm Pname="Cortex-M0p" name="Flash/CY8C6xxA_EFUSE.FLM"       start="0x90700000" size="0x00000400" RAMstart="0x08002400" RAMsize="0x8000" default ="0" style="Keil"/>
-        <algorithm Pname="Cortex-M4"  name="Flash/CY8C6xxA.FLM"             start="0x10000000" size="0x00200000" RAMstart="0x08026400" RAMsize="0x8000" default ="0" style="Keil"/>
-        <algorithm Pname="Cortex-M4"  name="Flash/CY8C6xxA_sect256KB.FLM"   start="0x10000000" size="0x00200000" RAMstart="0x08026400" RAMsize="0x8000" default ="1" style="Keil"/>
-        <algorithm Pname="Cortex-M4"  name="Flash/CY8C6xxA_WFLASH.FLM"      start="0x14000000" size="0x00008000" RAMstart="0x08026400" RAMsize="0x8000" default ="1" style="Keil"/>
-        <algorithm Pname="Cortex-M4"  name="Flash/CY8C6xxA_SFLASH_USER.FLM" start="0x16000800" size="0x00000800" RAMstart="0x08026400" RAMsize="0x8000" default ="1" style="Keil"/>
-        <algorithm Pname="Cortex-M4"  name="Flash/CY8C6xxA_SFLASH_NAR.FLM"  start="0x16001A00" size="0x00000200" RAMstart="0x08026400" RAMsize="0x8000" default ="0" style="Keil"/>
-        <algorithm Pname="Cortex-M4"  name="Flash/CY8C6xxA_SFLASH_PKEY.FLM" start="0x16005A00" size="0x00000C00" RAMstart="0x08026400" RAMsize="0x8000" default ="1" style="Keil"/>
-        <algorithm Pname="Cortex-M4"  name="Flash/CY8C6xxA_SFLASH_TOC2.FLM" start="0x16007C00" size="0x00000400" RAMstart="0x08026400" RAMsize="0x8000" default ="1" style="Keil"/>
-        <algorithm Pname="Cortex-M4"  name="Flash/CY8C6xxA_SMIF.FLM"        start="0x18000000" size="0x08000000" RAMstart="0x08026400" RAMsize="0x8000" default ="0" style="Keil"/>
-        <algorithm Pname="Cortex-M4"  name="Flash/CY8C6xxA_EFUSE.FLM"       start="0x90700000" size="0x00000400" RAMstart="0x08026400" RAMsize="0x8000" default ="0" style="Keil"/>
-      </device>
-      <device Dname="CY8C624AFNI-D43">
-        <compile   define="CY8C624AFNI_D43" />
-        <debug     Pname="Cortex-M4"  svd="SVD/psoc6_02.svd"/>
-        <debug     Pname="Cortex-M0p" svd="SVD/psoc6_02.svd"/>
-        <memory    name="IRAM1"       access="rwx" start="0x08000000" size="0x100000" default="1"/>
-        <memory    name="IROM1"       access="rx"  start="0x10000000" size="0x200000" default="1" startup="1"/>
-
-        <algorithm Pname="Cortex-M0p" name="Flash/CY8C6xxA.FLM"             start="0x10000000" size="0x00200000" RAMstart="0x08002400" RAMsize="0x8000" default ="0" style="Keil"/>
-        <algorithm Pname="Cortex-M0p" name="Flash/CY8C6xxA_sect256KB.FLM"   start="0x10000000" size="0x00200000" RAMstart="0x08002400" RAMsize="0x8000" default ="1" style="Keil"/>
-        <algorithm Pname="Cortex-M0p" name="Flash/CY8C6xxA_WFLASH.FLM"      start="0x14000000" size="0x00008000" RAMstart="0x08002400" RAMsize="0x8000" default ="1" style="Keil"/>
-        <algorithm Pname="Cortex-M0p" name="Flash/CY8C6xxA_SFLASH_USER.FLM" start="0x16000800" size="0x00000800" RAMstart="0x08002400" RAMsize="0x8000" default ="1" style="Keil"/>
-        <algorithm Pname="Cortex-M0p" name="Flash/CY8C6xxA_SFLASH_NAR.FLM"  start="0x16001A00" size="0x00000200" RAMstart="0x08002400" RAMsize="0x8000" default ="0" style="Keil"/>
-        <algorithm Pname="Cortex-M0p" name="Flash/CY8C6xxA_SFLASH_PKEY.FLM" start="0x16005A00" size="0x00000C00" RAMstart="0x08002400" RAMsize="0x8000" default ="1" style="Keil"/>
-        <algorithm Pname="Cortex-M0p" name="Flash/CY8C6xxA_SFLASH_TOC2.FLM" start="0x16007C00" size="0x00000400" RAMstart="0x08002400" RAMsize="0x8000" default ="1" style="Keil"/>
-        <algorithm Pname="Cortex-M0p" name="Flash/CY8C6xxA_SMIF.FLM"        start="0x18000000" size="0x08000000" RAMstart="0x08002400" RAMsize="0x8000" default ="0" style="Keil"/>
-        <algorithm Pname="Cortex-M0p" name="Flash/CY8C6xxA_EFUSE.FLM"       start="0x90700000" size="0x00000400" RAMstart="0x08002400" RAMsize="0x8000" default ="0" style="Keil"/>
-        <algorithm Pname="Cortex-M4"  name="Flash/CY8C6xxA.FLM"             start="0x10000000" size="0x00200000" RAMstart="0x08026400" RAMsize="0x8000" default ="0" style="Keil"/>
-        <algorithm Pname="Cortex-M4"  name="Flash/CY8C6xxA_sect256KB.FLM"   start="0x10000000" size="0x00200000" RAMstart="0x08026400" RAMsize="0x8000" default ="1" style="Keil"/>
-        <algorithm Pname="Cortex-M4"  name="Flash/CY8C6xxA_WFLASH.FLM"      start="0x14000000" size="0x00008000" RAMstart="0x08026400" RAMsize="0x8000" default ="1" style="Keil"/>
-        <algorithm Pname="Cortex-M4"  name="Flash/CY8C6xxA_SFLASH_USER.FLM" start="0x16000800" size="0x00000800" RAMstart="0x08026400" RAMsize="0x8000" default ="1" style="Keil"/>
-        <algorithm Pname="Cortex-M4"  name="Flash/CY8C6xxA_SFLASH_NAR.FLM"  start="0x16001A00" size="0x00000200" RAMstart="0x08026400" RAMsize="0x8000" default ="0" style="Keil"/>
-        <algorithm Pname="Cortex-M4"  name="Flash/CY8C6xxA_SFLASH_PKEY.FLM" start="0x16005A00" size="0x00000C00" RAMstart="0x08026400" RAMsize="0x8000" default ="1" style="Keil"/>
-        <algorithm Pname="Cortex-M4"  name="Flash/CY8C6xxA_SFLASH_TOC2.FLM" start="0x16007C00" size="0x00000400" RAMstart="0x08026400" RAMsize="0x8000" default ="1" style="Keil"/>
-        <algorithm Pname="Cortex-M4"  name="Flash/CY8C6xxA_SMIF.FLM"        start="0x18000000" size="0x08000000" RAMstart="0x08026400" RAMsize="0x8000" default ="0" style="Keil"/>
-        <algorithm Pname="Cortex-M4"  name="Flash/CY8C6xxA_EFUSE.FLM"       start="0x90700000" size="0x00000400" RAMstart="0x08026400" RAMsize="0x8000" default ="0" style="Keil"/>
-      </device>
-      <device Dname="CY8C624ALQI-D42">
-        <compile   define="CY8C624ALQI_D42" />
-        <debug     Pname="Cortex-M4"  svd="SVD/psoc6_02.svd"/>
-        <debug     Pname="Cortex-M0p" svd="SVD/psoc6_02.svd"/>
-        <memory    name="IRAM1"       access="rwx" start="0x08000000" size="0x100000" default="1"/>
-        <memory    name="IROM1"       access="rx"  start="0x10000000" size="0x200000" default="1" startup="1"/>
-
-        <algorithm Pname="Cortex-M0p" name="Flash/CY8C6xxA.FLM"             start="0x10000000" size="0x00200000" RAMstart="0x08002400" RAMsize="0x8000" default ="0" style="Keil"/>
-        <algorithm Pname="Cortex-M0p" name="Flash/CY8C6xxA_sect256KB.FLM"   start="0x10000000" size="0x00200000" RAMstart="0x08002400" RAMsize="0x8000" default ="1" style="Keil"/>
-        <algorithm Pname="Cortex-M0p" name="Flash/CY8C6xxA_WFLASH.FLM"      start="0x14000000" size="0x00008000" RAMstart="0x08002400" RAMsize="0x8000" default ="1" style="Keil"/>
-        <algorithm Pname="Cortex-M0p" name="Flash/CY8C6xxA_SFLASH_USER.FLM" start="0x16000800" size="0x00000800" RAMstart="0x08002400" RAMsize="0x8000" default ="1" style="Keil"/>
-        <algorithm Pname="Cortex-M0p" name="Flash/CY8C6xxA_SFLASH_NAR.FLM"  start="0x16001A00" size="0x00000200" RAMstart="0x08002400" RAMsize="0x8000" default ="0" style="Keil"/>
-        <algorithm Pname="Cortex-M0p" name="Flash/CY8C6xxA_SFLASH_PKEY.FLM" start="0x16005A00" size="0x00000C00" RAMstart="0x08002400" RAMsize="0x8000" default ="1" style="Keil"/>
-        <algorithm Pname="Cortex-M0p" name="Flash/CY8C6xxA_SFLASH_TOC2.FLM" start="0x16007C00" size="0x00000400" RAMstart="0x08002400" RAMsize="0x8000" default ="1" style="Keil"/>
-        <algorithm Pname="Cortex-M0p" name="Flash/CY8C6xxA_SMIF.FLM"        start="0x18000000" size="0x08000000" RAMstart="0x08002400" RAMsize="0x8000" default ="0" style="Keil"/>
-        <algorithm Pname="Cortex-M0p" name="Flash/CY8C6xxA_EFUSE.FLM"       start="0x90700000" size="0x00000400" RAMstart="0x08002400" RAMsize="0x8000" default ="0" style="Keil"/>
-        <algorithm Pname="Cortex-M4"  name="Flash/CY8C6xxA.FLM"             start="0x10000000" size="0x00200000" RAMstart="0x08026400" RAMsize="0x8000" default ="0" style="Keil"/>
-        <algorithm Pname="Cortex-M4"  name="Flash/CY8C6xxA_sect256KB.FLM"   start="0x10000000" size="0x00200000" RAMstart="0x08026400" RAMsize="0x8000" default ="1" style="Keil"/>
-        <algorithm Pname="Cortex-M4"  name="Flash/CY8C6xxA_WFLASH.FLM"      start="0x14000000" size="0x00008000" RAMstart="0x08026400" RAMsize="0x8000" default ="1" style="Keil"/>
-        <algorithm Pname="Cortex-M4"  name="Flash/CY8C6xxA_SFLASH_USER.FLM" start="0x16000800" size="0x00000800" RAMstart="0x08026400" RAMsize="0x8000" default ="1" style="Keil"/>
-        <algorithm Pname="Cortex-M4"  name="Flash/CY8C6xxA_SFLASH_NAR.FLM"  start="0x16001A00" size="0x00000200" RAMstart="0x08026400" RAMsize="0x8000" default ="0" style="Keil"/>
-        <algorithm Pname="Cortex-M4"  name="Flash/CY8C6xxA_SFLASH_PKEY.FLM" start="0x16005A00" size="0x00000C00" RAMstart="0x08026400" RAMsize="0x8000" default ="1" style="Keil"/>
-        <algorithm Pname="Cortex-M4"  name="Flash/CY8C6xxA_SFLASH_TOC2.FLM" start="0x16007C00" size="0x00000400" RAMstart="0x08026400" RAMsize="0x8000" default ="1" style="Keil"/>
-        <algorithm Pname="Cortex-M4"  name="Flash/CY8C6xxA_SMIF.FLM"        start="0x18000000" size="0x08000000" RAMstart="0x08026400" RAMsize="0x8000" default ="0" style="Keil"/>
-        <algorithm Pname="Cortex-M4"  name="Flash/CY8C6xxA_EFUSE.FLM"       start="0x90700000" size="0x00000400" RAMstart="0x08026400" RAMsize="0x8000" default ="0" style="Keil"/>
-      </device>
       <device Dname="CY8C624ABZI-S2D44A0">
         <compile   define="CY8C624ABZI_S2D44A0" />
         <debug     Pname="Cortex-M4"  svd="SVD/psoc6_02.svd"/>
@@ -1302,6 +1647,32 @@
         <algorithm Pname="Cortex-M0p" name="Flash/CY8C6xxA_EFUSE.FLM"       start="0x90700000" size="0x00000400" RAMstart="0x08002400" RAMsize="0x8000" default ="0" style="Keil"/>
         <algorithm Pname="Cortex-M4"  name="Flash/CY8C6xx8.FLM"             start="0x10000000" size="0x00100000" RAMstart="0x08026400" RAMsize="0x8000" default ="0" style="Keil"/>
         <algorithm Pname="Cortex-M4"  name="Flash/CY8C6xx8_sect256KB.FLM"   start="0x10000000" size="0x00100000" RAMstart="0x08026400" RAMsize="0x8000" default ="1" style="Keil"/>
+        <algorithm Pname="Cortex-M4"  name="Flash/CY8C6xxA_WFLASH.FLM"      start="0x14000000" size="0x00008000" RAMstart="0x08026400" RAMsize="0x8000" default ="1" style="Keil"/>
+        <algorithm Pname="Cortex-M4"  name="Flash/CY8C6xxA_SFLASH_USER.FLM" start="0x16000800" size="0x00000800" RAMstart="0x08026400" RAMsize="0x8000" default ="1" style="Keil"/>
+        <algorithm Pname="Cortex-M4"  name="Flash/CY8C6xxA_SFLASH_NAR.FLM"  start="0x16001A00" size="0x00000200" RAMstart="0x08026400" RAMsize="0x8000" default ="0" style="Keil"/>
+        <algorithm Pname="Cortex-M4"  name="Flash/CY8C6xxA_SFLASH_PKEY.FLM" start="0x16005A00" size="0x00000C00" RAMstart="0x08026400" RAMsize="0x8000" default ="1" style="Keil"/>
+        <algorithm Pname="Cortex-M4"  name="Flash/CY8C6xxA_SFLASH_TOC2.FLM" start="0x16007C00" size="0x00000400" RAMstart="0x08026400" RAMsize="0x8000" default ="1" style="Keil"/>
+        <algorithm Pname="Cortex-M4"  name="Flash/CY8C6xxA_SMIF.FLM"        start="0x18000000" size="0x08000000" RAMstart="0x08026400" RAMsize="0x8000" default ="0" style="Keil"/>
+        <algorithm Pname="Cortex-M4"  name="Flash/CY8C6xxA_EFUSE.FLM"       start="0x90700000" size="0x00000400" RAMstart="0x08026400" RAMsize="0x8000" default ="0" style="Keil"/>
+      </device>
+      <device Dname="CY8C624ABZI-D44">
+        <compile   define="CY8C624ABZI_D44" />
+        <debug     Pname="Cortex-M4"  svd="SVD/psoc6_02.svd"/>
+        <debug     Pname="Cortex-M0p" svd="SVD/psoc6_02.svd"/>
+        <memory    name="IRAM1"       access="rwx" start="0x08000000" size="0x100000" default="1"/>
+        <memory    name="IROM1"       access="rx"  start="0x10000000" size="0x200000" default="1" startup="1"/>
+
+        <algorithm Pname="Cortex-M0p" name="Flash/CY8C6xxA.FLM"             start="0x10000000" size="0x00200000" RAMstart="0x08002400" RAMsize="0x8000" default ="0" style="Keil"/>
+        <algorithm Pname="Cortex-M0p" name="Flash/CY8C6xxA_sect256KB.FLM"   start="0x10000000" size="0x00200000" RAMstart="0x08002400" RAMsize="0x8000" default ="1" style="Keil"/>
+        <algorithm Pname="Cortex-M0p" name="Flash/CY8C6xxA_WFLASH.FLM"      start="0x14000000" size="0x00008000" RAMstart="0x08002400" RAMsize="0x8000" default ="1" style="Keil"/>
+        <algorithm Pname="Cortex-M0p" name="Flash/CY8C6xxA_SFLASH_USER.FLM" start="0x16000800" size="0x00000800" RAMstart="0x08002400" RAMsize="0x8000" default ="1" style="Keil"/>
+        <algorithm Pname="Cortex-M0p" name="Flash/CY8C6xxA_SFLASH_NAR.FLM"  start="0x16001A00" size="0x00000200" RAMstart="0x08002400" RAMsize="0x8000" default ="0" style="Keil"/>
+        <algorithm Pname="Cortex-M0p" name="Flash/CY8C6xxA_SFLASH_PKEY.FLM" start="0x16005A00" size="0x00000C00" RAMstart="0x08002400" RAMsize="0x8000" default ="1" style="Keil"/>
+        <algorithm Pname="Cortex-M0p" name="Flash/CY8C6xxA_SFLASH_TOC2.FLM" start="0x16007C00" size="0x00000400" RAMstart="0x08002400" RAMsize="0x8000" default ="1" style="Keil"/>
+        <algorithm Pname="Cortex-M0p" name="Flash/CY8C6xxA_SMIF.FLM"        start="0x18000000" size="0x08000000" RAMstart="0x08002400" RAMsize="0x8000" default ="0" style="Keil"/>
+        <algorithm Pname="Cortex-M0p" name="Flash/CY8C6xxA_EFUSE.FLM"       start="0x90700000" size="0x00000400" RAMstart="0x08002400" RAMsize="0x8000" default ="0" style="Keil"/>
+        <algorithm Pname="Cortex-M4"  name="Flash/CY8C6xxA.FLM"             start="0x10000000" size="0x00200000" RAMstart="0x08026400" RAMsize="0x8000" default ="0" style="Keil"/>
+        <algorithm Pname="Cortex-M4"  name="Flash/CY8C6xxA_sect256KB.FLM"   start="0x10000000" size="0x00200000" RAMstart="0x08026400" RAMsize="0x8000" default ="1" style="Keil"/>
         <algorithm Pname="Cortex-M4"  name="Flash/CY8C6xxA_WFLASH.FLM"      start="0x14000000" size="0x00008000" RAMstart="0x08026400" RAMsize="0x8000" default ="1" style="Keil"/>
         <algorithm Pname="Cortex-M4"  name="Flash/CY8C6xxA_SFLASH_USER.FLM" start="0x16000800" size="0x00000800" RAMstart="0x08026400" RAMsize="0x8000" default ="1" style="Keil"/>
         <algorithm Pname="Cortex-M4"  name="Flash/CY8C6xxA_SFLASH_NAR.FLM"  start="0x16001A00" size="0x00000200" RAMstart="0x08026400" RAMsize="0x8000" default ="0" style="Keil"/>
@@ -1648,31 +2019,245 @@
         <algorithm Pname="Cortex-M4"  name="Flash/CY8C6xxA_SMIF.FLM"        start="0x18000000" size="0x08000000" RAMstart="0x08026400" RAMsize="0x8000" default ="0" style="Keil"/>
         <algorithm Pname="Cortex-M4"  name="Flash/CY8C6xxA_EFUSE.FLM"       start="0x90700000" size="0x00000400" RAMstart="0x08026400" RAMsize="0x8000" default ="0" style="Keil"/>
       </device>
-      <device Dname="CY8C6245W-S3D72">
-        <compile   define="CY8C6245W_S3D72" />
-        <debug     Pname="Cortex-M4"  svd="SVD/psoc6_03.svd"/>
-        <debug     Pname="Cortex-M0p" svd="SVD/psoc6_03.svd"/>
-        <memory    name="IRAM1"       access="rwx" start="0x08000000" size="0x40000" default="1"/>
-        <memory    name="IROM1"       access="rx"  start="0x10000000" size="0x80000" default="1" startup="1"/>
+      <device Dname="CY8C6244AZI-S4D92">
+        <compile   define="CY8C6244AZI_S4D92" />
+        <debug     Pname="Cortex-M4"  svd="SVD/psoc6_04.svd"/>
+        <debug     Pname="Cortex-M0p" svd="SVD/psoc6_04.svd"/>
+        <memory    name="IRAM1"       access="rwx" start="0x08000000" size="0x20000" default="1"/>
+        <memory    name="IROM1"       access="rx"  start="0x10000000" size="0x40000" default="1" startup="1"/>
 
-        <algorithm Pname="Cortex-M0p" name="Flash/CY8C6xx5.FLM"             start="0x10000000" size="0x00080000" RAMstart="0x08002400" RAMsize="0x8000" default ="0" style="Keil"/>
-        <algorithm Pname="Cortex-M0p" name="Flash/CY8C6xx5_sect256KB.FLM"   start="0x10000000" size="0x00080000" RAMstart="0x08002400" RAMsize="0x8000" default ="1" style="Keil"/>
-        <algorithm Pname="Cortex-M0p" name="Flash/CY8C6xxA_WFLASH.FLM"      start="0x14000000" size="0x00008000" RAMstart="0x08002400" RAMsize="0x8000" default ="1" style="Keil"/>
+        <algorithm Pname="Cortex-M0p" name="Flash/CY8C6xx4.FLM"             start="0x10000000" size="0x00040000" RAMstart="0x08002400" RAMsize="0x8000" default ="0" style="Keil"/>
+        <algorithm Pname="Cortex-M0p" name="Flash/CY8C6xx4_sect128KB.FLM"   start="0x10000000" size="0x00040000" RAMstart="0x08002400" RAMsize="0x8000" default ="1" style="Keil"/>
         <algorithm Pname="Cortex-M0p" name="Flash/CY8C6xxA_SFLASH_USER.FLM" start="0x16000800" size="0x00000800" RAMstart="0x08002400" RAMsize="0x8000" default ="1" style="Keil"/>
         <algorithm Pname="Cortex-M0p" name="Flash/CY8C6xxA_SFLASH_NAR.FLM"  start="0x16001A00" size="0x00000200" RAMstart="0x08002400" RAMsize="0x8000" default ="0" style="Keil"/>
         <algorithm Pname="Cortex-M0p" name="Flash/CY8C6xxA_SFLASH_PKEY.FLM" start="0x16005A00" size="0x00000C00" RAMstart="0x08002400" RAMsize="0x8000" default ="1" style="Keil"/>
         <algorithm Pname="Cortex-M0p" name="Flash/CY8C6xxA_SFLASH_TOC2.FLM" start="0x16007C00" size="0x00000400" RAMstart="0x08002400" RAMsize="0x8000" default ="1" style="Keil"/>
         <algorithm Pname="Cortex-M0p" name="Flash/CY8C6xxA_SMIF.FLM"        start="0x18000000" size="0x08000000" RAMstart="0x08002400" RAMsize="0x8000" default ="0" style="Keil"/>
         <algorithm Pname="Cortex-M0p" name="Flash/CY8C6xxA_EFUSE.FLM"       start="0x90700000" size="0x00000400" RAMstart="0x08002400" RAMsize="0x8000" default ="0" style="Keil"/>
-        <algorithm Pname="Cortex-M4"  name="Flash/CY8C6xx5.FLM"             start="0x10000000" size="0x00080000" RAMstart="0x08026400" RAMsize="0x8000" default ="0" style="Keil"/>
-        <algorithm Pname="Cortex-M4"  name="Flash/CY8C6xx5_sect256KB.FLM"   start="0x10000000" size="0x00080000" RAMstart="0x08026400" RAMsize="0x8000" default ="1" style="Keil"/>
-        <algorithm Pname="Cortex-M4"  name="Flash/CY8C6xxA_WFLASH.FLM"      start="0x14000000" size="0x00008000" RAMstart="0x08026400" RAMsize="0x8000" default ="1" style="Keil"/>
-        <algorithm Pname="Cortex-M4"  name="Flash/CY8C6xxA_SFLASH_USER.FLM" start="0x16000800" size="0x00000800" RAMstart="0x08026400" RAMsize="0x8000" default ="1" style="Keil"/>
-        <algorithm Pname="Cortex-M4"  name="Flash/CY8C6xxA_SFLASH_NAR.FLM"  start="0x16001A00" size="0x00000200" RAMstart="0x08026400" RAMsize="0x8000" default ="0" style="Keil"/>
-        <algorithm Pname="Cortex-M4"  name="Flash/CY8C6xxA_SFLASH_PKEY.FLM" start="0x16005A00" size="0x00000C00" RAMstart="0x08026400" RAMsize="0x8000" default ="1" style="Keil"/>
-        <algorithm Pname="Cortex-M4"  name="Flash/CY8C6xxA_SFLASH_TOC2.FLM" start="0x16007C00" size="0x00000400" RAMstart="0x08026400" RAMsize="0x8000" default ="1" style="Keil"/>
-        <algorithm Pname="Cortex-M4"  name="Flash/CY8C6xxA_SMIF.FLM"        start="0x18000000" size="0x08000000" RAMstart="0x08026400" RAMsize="0x8000" default ="0" style="Keil"/>
-        <algorithm Pname="Cortex-M4"  name="Flash/CY8C6xxA_EFUSE.FLM"       start="0x90700000" size="0x00000400" RAMstart="0x08026400" RAMsize="0x8000" default ="0" style="Keil"/>
+        <algorithm Pname="Cortex-M4"  name="Flash/CY8C6xx4.FLM"             start="0x10000000" size="0x00040000" RAMstart="0x08002400" RAMsize="0x8000" default ="0" style="Keil"/>
+        <algorithm Pname="Cortex-M4"  name="Flash/CY8C6xx4_sect128KB.FLM"   start="0x10000000" size="0x00040000" RAMstart="0x08002400" RAMsize="0x8000" default ="1" style="Keil"/>
+        <algorithm Pname="Cortex-M4"  name="Flash/CY8C6xxA_SFLASH_USER.FLM" start="0x16000800" size="0x00000800" RAMstart="0x08002400" RAMsize="0x8000" default ="1" style="Keil"/>
+        <algorithm Pname="Cortex-M4"  name="Flash/CY8C6xxA_SFLASH_NAR.FLM"  start="0x16001A00" size="0x00000200" RAMstart="0x08002400" RAMsize="0x8000" default ="0" style="Keil"/>
+        <algorithm Pname="Cortex-M4"  name="Flash/CY8C6xxA_SFLASH_PKEY.FLM" start="0x16005A00" size="0x00000C00" RAMstart="0x08002400" RAMsize="0x8000" default ="1" style="Keil"/>
+        <algorithm Pname="Cortex-M4"  name="Flash/CY8C6xxA_SFLASH_TOC2.FLM" start="0x16007C00" size="0x00000400" RAMstart="0x08002400" RAMsize="0x8000" default ="1" style="Keil"/>
+        <algorithm Pname="Cortex-M4"  name="Flash/CY8C6xxA_SMIF.FLM"        start="0x18000000" size="0x08000000" RAMstart="0x08002400" RAMsize="0x8000" default ="0" style="Keil"/>
+        <algorithm Pname="Cortex-M4"  name="Flash/CY8C6xxA_EFUSE.FLM"       start="0x90700000" size="0x00000400" RAMstart="0x08002400" RAMsize="0x8000" default ="0" style="Keil"/>
+      </device>
+      <device Dname="CY8C6244LQI-S4D92">
+        <compile   define="CY8C6244LQI_S4D92" />
+        <debug     Pname="Cortex-M4"  svd="SVD/psoc6_04.svd"/>
+        <debug     Pname="Cortex-M0p" svd="SVD/psoc6_04.svd"/>
+        <memory    name="IRAM1"       access="rwx" start="0x08000000" size="0x20000" default="1"/>
+        <memory    name="IROM1"       access="rx"  start="0x10000000" size="0x40000" default="1" startup="1"/>
+
+        <algorithm Pname="Cortex-M0p" name="Flash/CY8C6xx4.FLM"             start="0x10000000" size="0x00040000" RAMstart="0x08002400" RAMsize="0x8000" default ="0" style="Keil"/>
+        <algorithm Pname="Cortex-M0p" name="Flash/CY8C6xx4_sect128KB.FLM"   start="0x10000000" size="0x00040000" RAMstart="0x08002400" RAMsize="0x8000" default ="1" style="Keil"/>
+        <algorithm Pname="Cortex-M0p" name="Flash/CY8C6xxA_SFLASH_USER.FLM" start="0x16000800" size="0x00000800" RAMstart="0x08002400" RAMsize="0x8000" default ="1" style="Keil"/>
+        <algorithm Pname="Cortex-M0p" name="Flash/CY8C6xxA_SFLASH_NAR.FLM"  start="0x16001A00" size="0x00000200" RAMstart="0x08002400" RAMsize="0x8000" default ="0" style="Keil"/>
+        <algorithm Pname="Cortex-M0p" name="Flash/CY8C6xxA_SFLASH_PKEY.FLM" start="0x16005A00" size="0x00000C00" RAMstart="0x08002400" RAMsize="0x8000" default ="1" style="Keil"/>
+        <algorithm Pname="Cortex-M0p" name="Flash/CY8C6xxA_SFLASH_TOC2.FLM" start="0x16007C00" size="0x00000400" RAMstart="0x08002400" RAMsize="0x8000" default ="1" style="Keil"/>
+        <algorithm Pname="Cortex-M0p" name="Flash/CY8C6xxA_SMIF.FLM"        start="0x18000000" size="0x08000000" RAMstart="0x08002400" RAMsize="0x8000" default ="0" style="Keil"/>
+        <algorithm Pname="Cortex-M0p" name="Flash/CY8C6xxA_EFUSE.FLM"       start="0x90700000" size="0x00000400" RAMstart="0x08002400" RAMsize="0x8000" default ="0" style="Keil"/>
+        <algorithm Pname="Cortex-M4"  name="Flash/CY8C6xx4.FLM"             start="0x10000000" size="0x00040000" RAMstart="0x08002400" RAMsize="0x8000" default ="0" style="Keil"/>
+        <algorithm Pname="Cortex-M4"  name="Flash/CY8C6xx4_sect128KB.FLM"   start="0x10000000" size="0x00040000" RAMstart="0x08002400" RAMsize="0x8000" default ="1" style="Keil"/>
+        <algorithm Pname="Cortex-M4"  name="Flash/CY8C6xxA_SFLASH_USER.FLM" start="0x16000800" size="0x00000800" RAMstart="0x08002400" RAMsize="0x8000" default ="1" style="Keil"/>
+        <algorithm Pname="Cortex-M4"  name="Flash/CY8C6xxA_SFLASH_NAR.FLM"  start="0x16001A00" size="0x00000200" RAMstart="0x08002400" RAMsize="0x8000" default ="0" style="Keil"/>
+        <algorithm Pname="Cortex-M4"  name="Flash/CY8C6xxA_SFLASH_PKEY.FLM" start="0x16005A00" size="0x00000C00" RAMstart="0x08002400" RAMsize="0x8000" default ="1" style="Keil"/>
+        <algorithm Pname="Cortex-M4"  name="Flash/CY8C6xxA_SFLASH_TOC2.FLM" start="0x16007C00" size="0x00000400" RAMstart="0x08002400" RAMsize="0x8000" default ="1" style="Keil"/>
+        <algorithm Pname="Cortex-M4"  name="Flash/CY8C6xxA_SMIF.FLM"        start="0x18000000" size="0x08000000" RAMstart="0x08002400" RAMsize="0x8000" default ="0" style="Keil"/>
+        <algorithm Pname="Cortex-M4"  name="Flash/CY8C6xxA_EFUSE.FLM"       start="0x90700000" size="0x00000400" RAMstart="0x08002400" RAMsize="0x8000" default ="0" style="Keil"/>
+      </device>
+      <device Dname="CY8C6244AZI-S4D93">
+        <compile   define="CY8C6244AZI_S4D93" />
+        <debug     Pname="Cortex-M4"  svd="SVD/psoc6_04.svd"/>
+        <debug     Pname="Cortex-M0p" svd="SVD/psoc6_04.svd"/>
+        <memory    name="IRAM1"       access="rwx" start="0x08000000" size="0x20000" default="1"/>
+        <memory    name="IROM1"       access="rx"  start="0x10000000" size="0x40000" default="1" startup="1"/>
+
+        <algorithm Pname="Cortex-M0p" name="Flash/CY8C6xx4.FLM"             start="0x10000000" size="0x00040000" RAMstart="0x08002400" RAMsize="0x8000" default ="0" style="Keil"/>
+        <algorithm Pname="Cortex-M0p" name="Flash/CY8C6xx4_sect128KB.FLM"   start="0x10000000" size="0x00040000" RAMstart="0x08002400" RAMsize="0x8000" default ="1" style="Keil"/>
+        <algorithm Pname="Cortex-M0p" name="Flash/CY8C6xxA_SFLASH_USER.FLM" start="0x16000800" size="0x00000800" RAMstart="0x08002400" RAMsize="0x8000" default ="1" style="Keil"/>
+        <algorithm Pname="Cortex-M0p" name="Flash/CY8C6xxA_SFLASH_NAR.FLM"  start="0x16001A00" size="0x00000200" RAMstart="0x08002400" RAMsize="0x8000" default ="0" style="Keil"/>
+        <algorithm Pname="Cortex-M0p" name="Flash/CY8C6xxA_SFLASH_PKEY.FLM" start="0x16005A00" size="0x00000C00" RAMstart="0x08002400" RAMsize="0x8000" default ="1" style="Keil"/>
+        <algorithm Pname="Cortex-M0p" name="Flash/CY8C6xxA_SFLASH_TOC2.FLM" start="0x16007C00" size="0x00000400" RAMstart="0x08002400" RAMsize="0x8000" default ="1" style="Keil"/>
+        <algorithm Pname="Cortex-M0p" name="Flash/CY8C6xxA_SMIF.FLM"        start="0x18000000" size="0x08000000" RAMstart="0x08002400" RAMsize="0x8000" default ="0" style="Keil"/>
+        <algorithm Pname="Cortex-M0p" name="Flash/CY8C6xxA_EFUSE.FLM"       start="0x90700000" size="0x00000400" RAMstart="0x08002400" RAMsize="0x8000" default ="0" style="Keil"/>
+        <algorithm Pname="Cortex-M4"  name="Flash/CY8C6xx4.FLM"             start="0x10000000" size="0x00040000" RAMstart="0x08002400" RAMsize="0x8000" default ="0" style="Keil"/>
+        <algorithm Pname="Cortex-M4"  name="Flash/CY8C6xx4_sect128KB.FLM"   start="0x10000000" size="0x00040000" RAMstart="0x08002400" RAMsize="0x8000" default ="1" style="Keil"/>
+        <algorithm Pname="Cortex-M4"  name="Flash/CY8C6xxA_SFLASH_USER.FLM" start="0x16000800" size="0x00000800" RAMstart="0x08002400" RAMsize="0x8000" default ="1" style="Keil"/>
+        <algorithm Pname="Cortex-M4"  name="Flash/CY8C6xxA_SFLASH_NAR.FLM"  start="0x16001A00" size="0x00000200" RAMstart="0x08002400" RAMsize="0x8000" default ="0" style="Keil"/>
+        <algorithm Pname="Cortex-M4"  name="Flash/CY8C6xxA_SFLASH_PKEY.FLM" start="0x16005A00" size="0x00000C00" RAMstart="0x08002400" RAMsize="0x8000" default ="1" style="Keil"/>
+        <algorithm Pname="Cortex-M4"  name="Flash/CY8C6xxA_SFLASH_TOC2.FLM" start="0x16007C00" size="0x00000400" RAMstart="0x08002400" RAMsize="0x8000" default ="1" style="Keil"/>
+        <algorithm Pname="Cortex-M4"  name="Flash/CY8C6xxA_SMIF.FLM"        start="0x18000000" size="0x08000000" RAMstart="0x08002400" RAMsize="0x8000" default ="0" style="Keil"/>
+        <algorithm Pname="Cortex-M4"  name="Flash/CY8C6xxA_EFUSE.FLM"       start="0x90700000" size="0x00000400" RAMstart="0x08002400" RAMsize="0x8000" default ="0" style="Keil"/>
+      </device>
+      <device Dname="CY8C6244AZI-S4D82">
+        <compile   define="CY8C6244AZI_S4D82" />
+        <debug     Pname="Cortex-M4"  svd="SVD/psoc6_04.svd"/>
+        <debug     Pname="Cortex-M0p" svd="SVD/psoc6_04.svd"/>
+        <memory    name="IRAM1"       access="rwx" start="0x08000000" size="0x20000" default="1"/>
+        <memory    name="IROM1"       access="rx"  start="0x10000000" size="0x40000" default="1" startup="1"/>
+
+        <algorithm Pname="Cortex-M0p" name="Flash/CY8C6xx4.FLM"             start="0x10000000" size="0x00040000" RAMstart="0x08002400" RAMsize="0x8000" default ="0" style="Keil"/>
+        <algorithm Pname="Cortex-M0p" name="Flash/CY8C6xx4_sect128KB.FLM"   start="0x10000000" size="0x00040000" RAMstart="0x08002400" RAMsize="0x8000" default ="1" style="Keil"/>
+        <algorithm Pname="Cortex-M0p" name="Flash/CY8C6xxA_SFLASH_USER.FLM" start="0x16000800" size="0x00000800" RAMstart="0x08002400" RAMsize="0x8000" default ="1" style="Keil"/>
+        <algorithm Pname="Cortex-M0p" name="Flash/CY8C6xxA_SFLASH_NAR.FLM"  start="0x16001A00" size="0x00000200" RAMstart="0x08002400" RAMsize="0x8000" default ="0" style="Keil"/>
+        <algorithm Pname="Cortex-M0p" name="Flash/CY8C6xxA_SFLASH_PKEY.FLM" start="0x16005A00" size="0x00000C00" RAMstart="0x08002400" RAMsize="0x8000" default ="1" style="Keil"/>
+        <algorithm Pname="Cortex-M0p" name="Flash/CY8C6xxA_SFLASH_TOC2.FLM" start="0x16007C00" size="0x00000400" RAMstart="0x08002400" RAMsize="0x8000" default ="1" style="Keil"/>
+        <algorithm Pname="Cortex-M0p" name="Flash/CY8C6xxA_SMIF.FLM"        start="0x18000000" size="0x08000000" RAMstart="0x08002400" RAMsize="0x8000" default ="0" style="Keil"/>
+        <algorithm Pname="Cortex-M0p" name="Flash/CY8C6xxA_EFUSE.FLM"       start="0x90700000" size="0x00000400" RAMstart="0x08002400" RAMsize="0x8000" default ="0" style="Keil"/>
+        <algorithm Pname="Cortex-M4"  name="Flash/CY8C6xx4.FLM"             start="0x10000000" size="0x00040000" RAMstart="0x08002400" RAMsize="0x8000" default ="0" style="Keil"/>
+        <algorithm Pname="Cortex-M4"  name="Flash/CY8C6xx4_sect128KB.FLM"   start="0x10000000" size="0x00040000" RAMstart="0x08002400" RAMsize="0x8000" default ="1" style="Keil"/>
+        <algorithm Pname="Cortex-M4"  name="Flash/CY8C6xxA_SFLASH_USER.FLM" start="0x16000800" size="0x00000800" RAMstart="0x08002400" RAMsize="0x8000" default ="1" style="Keil"/>
+        <algorithm Pname="Cortex-M4"  name="Flash/CY8C6xxA_SFLASH_NAR.FLM"  start="0x16001A00" size="0x00000200" RAMstart="0x08002400" RAMsize="0x8000" default ="0" style="Keil"/>
+        <algorithm Pname="Cortex-M4"  name="Flash/CY8C6xxA_SFLASH_PKEY.FLM" start="0x16005A00" size="0x00000C00" RAMstart="0x08002400" RAMsize="0x8000" default ="1" style="Keil"/>
+        <algorithm Pname="Cortex-M4"  name="Flash/CY8C6xxA_SFLASH_TOC2.FLM" start="0x16007C00" size="0x00000400" RAMstart="0x08002400" RAMsize="0x8000" default ="1" style="Keil"/>
+        <algorithm Pname="Cortex-M4"  name="Flash/CY8C6xxA_SMIF.FLM"        start="0x18000000" size="0x08000000" RAMstart="0x08002400" RAMsize="0x8000" default ="0" style="Keil"/>
+        <algorithm Pname="Cortex-M4"  name="Flash/CY8C6xxA_EFUSE.FLM"       start="0x90700000" size="0x00000400" RAMstart="0x08002400" RAMsize="0x8000" default ="0" style="Keil"/>
+      </device>
+      <device Dname="CY8C6244LQI-S4D82">
+        <compile   define="CY8C6244LQI_S4D82" />
+        <debug     Pname="Cortex-M4"  svd="SVD/psoc6_04.svd"/>
+        <debug     Pname="Cortex-M0p" svd="SVD/psoc6_04.svd"/>
+        <memory    name="IRAM1"       access="rwx" start="0x08000000" size="0x20000" default="1"/>
+        <memory    name="IROM1"       access="rx"  start="0x10000000" size="0x40000" default="1" startup="1"/>
+
+        <algorithm Pname="Cortex-M0p" name="Flash/CY8C6xx4.FLM"             start="0x10000000" size="0x00040000" RAMstart="0x08002400" RAMsize="0x8000" default ="0" style="Keil"/>
+        <algorithm Pname="Cortex-M0p" name="Flash/CY8C6xx4_sect128KB.FLM"   start="0x10000000" size="0x00040000" RAMstart="0x08002400" RAMsize="0x8000" default ="1" style="Keil"/>
+        <algorithm Pname="Cortex-M0p" name="Flash/CY8C6xxA_SFLASH_USER.FLM" start="0x16000800" size="0x00000800" RAMstart="0x08002400" RAMsize="0x8000" default ="1" style="Keil"/>
+        <algorithm Pname="Cortex-M0p" name="Flash/CY8C6xxA_SFLASH_NAR.FLM"  start="0x16001A00" size="0x00000200" RAMstart="0x08002400" RAMsize="0x8000" default ="0" style="Keil"/>
+        <algorithm Pname="Cortex-M0p" name="Flash/CY8C6xxA_SFLASH_PKEY.FLM" start="0x16005A00" size="0x00000C00" RAMstart="0x08002400" RAMsize="0x8000" default ="1" style="Keil"/>
+        <algorithm Pname="Cortex-M0p" name="Flash/CY8C6xxA_SFLASH_TOC2.FLM" start="0x16007C00" size="0x00000400" RAMstart="0x08002400" RAMsize="0x8000" default ="1" style="Keil"/>
+        <algorithm Pname="Cortex-M0p" name="Flash/CY8C6xxA_SMIF.FLM"        start="0x18000000" size="0x08000000" RAMstart="0x08002400" RAMsize="0x8000" default ="0" style="Keil"/>
+        <algorithm Pname="Cortex-M0p" name="Flash/CY8C6xxA_EFUSE.FLM"       start="0x90700000" size="0x00000400" RAMstart="0x08002400" RAMsize="0x8000" default ="0" style="Keil"/>
+        <algorithm Pname="Cortex-M4"  name="Flash/CY8C6xx4.FLM"             start="0x10000000" size="0x00040000" RAMstart="0x08002400" RAMsize="0x8000" default ="0" style="Keil"/>
+        <algorithm Pname="Cortex-M4"  name="Flash/CY8C6xx4_sect128KB.FLM"   start="0x10000000" size="0x00040000" RAMstart="0x08002400" RAMsize="0x8000" default ="1" style="Keil"/>
+        <algorithm Pname="Cortex-M4"  name="Flash/CY8C6xxA_SFLASH_USER.FLM" start="0x16000800" size="0x00000800" RAMstart="0x08002400" RAMsize="0x8000" default ="1" style="Keil"/>
+        <algorithm Pname="Cortex-M4"  name="Flash/CY8C6xxA_SFLASH_NAR.FLM"  start="0x16001A00" size="0x00000200" RAMstart="0x08002400" RAMsize="0x8000" default ="0" style="Keil"/>
+        <algorithm Pname="Cortex-M4"  name="Flash/CY8C6xxA_SFLASH_PKEY.FLM" start="0x16005A00" size="0x00000C00" RAMstart="0x08002400" RAMsize="0x8000" default ="1" style="Keil"/>
+        <algorithm Pname="Cortex-M4"  name="Flash/CY8C6xxA_SFLASH_TOC2.FLM" start="0x16007C00" size="0x00000400" RAMstart="0x08002400" RAMsize="0x8000" default ="1" style="Keil"/>
+        <algorithm Pname="Cortex-M4"  name="Flash/CY8C6xxA_SMIF.FLM"        start="0x18000000" size="0x08000000" RAMstart="0x08002400" RAMsize="0x8000" default ="0" style="Keil"/>
+        <algorithm Pname="Cortex-M4"  name="Flash/CY8C6xxA_EFUSE.FLM"       start="0x90700000" size="0x00000400" RAMstart="0x08002400" RAMsize="0x8000" default ="0" style="Keil"/>
+      </device>
+      <device Dname="CY8C6244AZI-S4D83">
+        <compile   define="CY8C6244AZI_S4D83" />
+        <debug     Pname="Cortex-M4"  svd="SVD/psoc6_04.svd"/>
+        <debug     Pname="Cortex-M0p" svd="SVD/psoc6_04.svd"/>
+        <memory    name="IRAM1"       access="rwx" start="0x08000000" size="0x20000" default="1"/>
+        <memory    name="IROM1"       access="rx"  start="0x10000000" size="0x40000" default="1" startup="1"/>
+
+        <algorithm Pname="Cortex-M0p" name="Flash/CY8C6xx4.FLM"             start="0x10000000" size="0x00040000" RAMstart="0x08002400" RAMsize="0x8000" default ="0" style="Keil"/>
+        <algorithm Pname="Cortex-M0p" name="Flash/CY8C6xx4_sect128KB.FLM"   start="0x10000000" size="0x00040000" RAMstart="0x08002400" RAMsize="0x8000" default ="1" style="Keil"/>
+        <algorithm Pname="Cortex-M0p" name="Flash/CY8C6xxA_SFLASH_USER.FLM" start="0x16000800" size="0x00000800" RAMstart="0x08002400" RAMsize="0x8000" default ="1" style="Keil"/>
+        <algorithm Pname="Cortex-M0p" name="Flash/CY8C6xxA_SFLASH_NAR.FLM"  start="0x16001A00" size="0x00000200" RAMstart="0x08002400" RAMsize="0x8000" default ="0" style="Keil"/>
+        <algorithm Pname="Cortex-M0p" name="Flash/CY8C6xxA_SFLASH_PKEY.FLM" start="0x16005A00" size="0x00000C00" RAMstart="0x08002400" RAMsize="0x8000" default ="1" style="Keil"/>
+        <algorithm Pname="Cortex-M0p" name="Flash/CY8C6xxA_SFLASH_TOC2.FLM" start="0x16007C00" size="0x00000400" RAMstart="0x08002400" RAMsize="0x8000" default ="1" style="Keil"/>
+        <algorithm Pname="Cortex-M0p" name="Flash/CY8C6xxA_SMIF.FLM"        start="0x18000000" size="0x08000000" RAMstart="0x08002400" RAMsize="0x8000" default ="0" style="Keil"/>
+        <algorithm Pname="Cortex-M0p" name="Flash/CY8C6xxA_EFUSE.FLM"       start="0x90700000" size="0x00000400" RAMstart="0x08002400" RAMsize="0x8000" default ="0" style="Keil"/>
+        <algorithm Pname="Cortex-M4"  name="Flash/CY8C6xx4.FLM"             start="0x10000000" size="0x00040000" RAMstart="0x08002400" RAMsize="0x8000" default ="0" style="Keil"/>
+        <algorithm Pname="Cortex-M4"  name="Flash/CY8C6xx4_sect128KB.FLM"   start="0x10000000" size="0x00040000" RAMstart="0x08002400" RAMsize="0x8000" default ="1" style="Keil"/>
+        <algorithm Pname="Cortex-M4"  name="Flash/CY8C6xxA_SFLASH_USER.FLM" start="0x16000800" size="0x00000800" RAMstart="0x08002400" RAMsize="0x8000" default ="1" style="Keil"/>
+        <algorithm Pname="Cortex-M4"  name="Flash/CY8C6xxA_SFLASH_NAR.FLM"  start="0x16001A00" size="0x00000200" RAMstart="0x08002400" RAMsize="0x8000" default ="0" style="Keil"/>
+        <algorithm Pname="Cortex-M4"  name="Flash/CY8C6xxA_SFLASH_PKEY.FLM" start="0x16005A00" size="0x00000C00" RAMstart="0x08002400" RAMsize="0x8000" default ="1" style="Keil"/>
+        <algorithm Pname="Cortex-M4"  name="Flash/CY8C6xxA_SFLASH_TOC2.FLM" start="0x16007C00" size="0x00000400" RAMstart="0x08002400" RAMsize="0x8000" default ="1" style="Keil"/>
+        <algorithm Pname="Cortex-M4"  name="Flash/CY8C6xxA_SMIF.FLM"        start="0x18000000" size="0x08000000" RAMstart="0x08002400" RAMsize="0x8000" default ="0" style="Keil"/>
+        <algorithm Pname="Cortex-M4"  name="Flash/CY8C6xxA_EFUSE.FLM"       start="0x90700000" size="0x00000400" RAMstart="0x08002400" RAMsize="0x8000" default ="0" style="Keil"/>
+      </device>
+      <device Dname="CY8C6244AZI-S4D62">
+        <compile   define="CY8C6244AZI_S4D62" />
+        <debug     Pname="Cortex-M4"  svd="SVD/psoc6_04.svd"/>
+        <debug     Pname="Cortex-M0p" svd="SVD/psoc6_04.svd"/>
+        <memory    name="IRAM1"       access="rwx" start="0x08000000" size="0x20000" default="1"/>
+        <memory    name="IROM1"       access="rx"  start="0x10000000" size="0x40000" default="1" startup="1"/>
+
+        <algorithm Pname="Cortex-M0p" name="Flash/CY8C6xx4.FLM"             start="0x10000000" size="0x00040000" RAMstart="0x08002400" RAMsize="0x8000" default ="0" style="Keil"/>
+        <algorithm Pname="Cortex-M0p" name="Flash/CY8C6xx4_sect128KB.FLM"   start="0x10000000" size="0x00040000" RAMstart="0x08002400" RAMsize="0x8000" default ="1" style="Keil"/>
+        <algorithm Pname="Cortex-M0p" name="Flash/CY8C6xxA_SFLASH_USER.FLM" start="0x16000800" size="0x00000800" RAMstart="0x08002400" RAMsize="0x8000" default ="1" style="Keil"/>
+        <algorithm Pname="Cortex-M0p" name="Flash/CY8C6xxA_SFLASH_NAR.FLM"  start="0x16001A00" size="0x00000200" RAMstart="0x08002400" RAMsize="0x8000" default ="0" style="Keil"/>
+        <algorithm Pname="Cortex-M0p" name="Flash/CY8C6xxA_SFLASH_PKEY.FLM" start="0x16005A00" size="0x00000C00" RAMstart="0x08002400" RAMsize="0x8000" default ="1" style="Keil"/>
+        <algorithm Pname="Cortex-M0p" name="Flash/CY8C6xxA_SFLASH_TOC2.FLM" start="0x16007C00" size="0x00000400" RAMstart="0x08002400" RAMsize="0x8000" default ="1" style="Keil"/>
+        <algorithm Pname="Cortex-M0p" name="Flash/CY8C6xxA_SMIF.FLM"        start="0x18000000" size="0x08000000" RAMstart="0x08002400" RAMsize="0x8000" default ="0" style="Keil"/>
+        <algorithm Pname="Cortex-M0p" name="Flash/CY8C6xxA_EFUSE.FLM"       start="0x90700000" size="0x00000400" RAMstart="0x08002400" RAMsize="0x8000" default ="0" style="Keil"/>
+        <algorithm Pname="Cortex-M4"  name="Flash/CY8C6xx4.FLM"             start="0x10000000" size="0x00040000" RAMstart="0x08002400" RAMsize="0x8000" default ="0" style="Keil"/>
+        <algorithm Pname="Cortex-M4"  name="Flash/CY8C6xx4_sect128KB.FLM"   start="0x10000000" size="0x00040000" RAMstart="0x08002400" RAMsize="0x8000" default ="1" style="Keil"/>
+        <algorithm Pname="Cortex-M4"  name="Flash/CY8C6xxA_SFLASH_USER.FLM" start="0x16000800" size="0x00000800" RAMstart="0x08002400" RAMsize="0x8000" default ="1" style="Keil"/>
+        <algorithm Pname="Cortex-M4"  name="Flash/CY8C6xxA_SFLASH_NAR.FLM"  start="0x16001A00" size="0x00000200" RAMstart="0x08002400" RAMsize="0x8000" default ="0" style="Keil"/>
+        <algorithm Pname="Cortex-M4"  name="Flash/CY8C6xxA_SFLASH_PKEY.FLM" start="0x16005A00" size="0x00000C00" RAMstart="0x08002400" RAMsize="0x8000" default ="1" style="Keil"/>
+        <algorithm Pname="Cortex-M4"  name="Flash/CY8C6xxA_SFLASH_TOC2.FLM" start="0x16007C00" size="0x00000400" RAMstart="0x08002400" RAMsize="0x8000" default ="1" style="Keil"/>
+        <algorithm Pname="Cortex-M4"  name="Flash/CY8C6xxA_SMIF.FLM"        start="0x18000000" size="0x08000000" RAMstart="0x08002400" RAMsize="0x8000" default ="0" style="Keil"/>
+        <algorithm Pname="Cortex-M4"  name="Flash/CY8C6xxA_EFUSE.FLM"       start="0x90700000" size="0x00000400" RAMstart="0x08002400" RAMsize="0x8000" default ="0" style="Keil"/>
+      </device>
+      <device Dname="CY8C6244LQI-S4D62">
+        <compile   define="CY8C6244LQI_S4D62" />
+        <debug     Pname="Cortex-M4"  svd="SVD/psoc6_04.svd"/>
+        <debug     Pname="Cortex-M0p" svd="SVD/psoc6_04.svd"/>
+        <memory    name="IRAM1"       access="rwx" start="0x08000000" size="0x20000" default="1"/>
+        <memory    name="IROM1"       access="rx"  start="0x10000000" size="0x40000" default="1" startup="1"/>
+
+        <algorithm Pname="Cortex-M0p" name="Flash/CY8C6xx4.FLM"             start="0x10000000" size="0x00040000" RAMstart="0x08002400" RAMsize="0x8000" default ="0" style="Keil"/>
+        <algorithm Pname="Cortex-M0p" name="Flash/CY8C6xx4_sect128KB.FLM"   start="0x10000000" size="0x00040000" RAMstart="0x08002400" RAMsize="0x8000" default ="1" style="Keil"/>
+        <algorithm Pname="Cortex-M0p" name="Flash/CY8C6xxA_SFLASH_USER.FLM" start="0x16000800" size="0x00000800" RAMstart="0x08002400" RAMsize="0x8000" default ="1" style="Keil"/>
+        <algorithm Pname="Cortex-M0p" name="Flash/CY8C6xxA_SFLASH_NAR.FLM"  start="0x16001A00" size="0x00000200" RAMstart="0x08002400" RAMsize="0x8000" default ="0" style="Keil"/>
+        <algorithm Pname="Cortex-M0p" name="Flash/CY8C6xxA_SFLASH_PKEY.FLM" start="0x16005A00" size="0x00000C00" RAMstart="0x08002400" RAMsize="0x8000" default ="1" style="Keil"/>
+        <algorithm Pname="Cortex-M0p" name="Flash/CY8C6xxA_SFLASH_TOC2.FLM" start="0x16007C00" size="0x00000400" RAMstart="0x08002400" RAMsize="0x8000" default ="1" style="Keil"/>
+        <algorithm Pname="Cortex-M0p" name="Flash/CY8C6xxA_SMIF.FLM"        start="0x18000000" size="0x08000000" RAMstart="0x08002400" RAMsize="0x8000" default ="0" style="Keil"/>
+        <algorithm Pname="Cortex-M0p" name="Flash/CY8C6xxA_EFUSE.FLM"       start="0x90700000" size="0x00000400" RAMstart="0x08002400" RAMsize="0x8000" default ="0" style="Keil"/>
+        <algorithm Pname="Cortex-M4"  name="Flash/CY8C6xx4.FLM"             start="0x10000000" size="0x00040000" RAMstart="0x08002400" RAMsize="0x8000" default ="0" style="Keil"/>
+        <algorithm Pname="Cortex-M4"  name="Flash/CY8C6xx4_sect128KB.FLM"   start="0x10000000" size="0x00040000" RAMstart="0x08002400" RAMsize="0x8000" default ="1" style="Keil"/>
+        <algorithm Pname="Cortex-M4"  name="Flash/CY8C6xxA_SFLASH_USER.FLM" start="0x16000800" size="0x00000800" RAMstart="0x08002400" RAMsize="0x8000" default ="1" style="Keil"/>
+        <algorithm Pname="Cortex-M4"  name="Flash/CY8C6xxA_SFLASH_NAR.FLM"  start="0x16001A00" size="0x00000200" RAMstart="0x08002400" RAMsize="0x8000" default ="0" style="Keil"/>
+        <algorithm Pname="Cortex-M4"  name="Flash/CY8C6xxA_SFLASH_PKEY.FLM" start="0x16005A00" size="0x00000C00" RAMstart="0x08002400" RAMsize="0x8000" default ="1" style="Keil"/>
+        <algorithm Pname="Cortex-M4"  name="Flash/CY8C6xxA_SFLASH_TOC2.FLM" start="0x16007C00" size="0x00000400" RAMstart="0x08002400" RAMsize="0x8000" default ="1" style="Keil"/>
+        <algorithm Pname="Cortex-M4"  name="Flash/CY8C6xxA_SMIF.FLM"        start="0x18000000" size="0x08000000" RAMstart="0x08002400" RAMsize="0x8000" default ="0" style="Keil"/>
+        <algorithm Pname="Cortex-M4"  name="Flash/CY8C6xxA_EFUSE.FLM"       start="0x90700000" size="0x00000400" RAMstart="0x08002400" RAMsize="0x8000" default ="0" style="Keil"/>
+      </device>
+      <device Dname="CY8C6244AZI-S4D12">
+        <compile   define="CY8C6244AZI_S4D12" />
+        <debug     Pname="Cortex-M4"  svd="SVD/psoc6_04.svd"/>
+        <debug     Pname="Cortex-M0p" svd="SVD/psoc6_04.svd"/>
+        <memory    name="IRAM1"       access="rwx" start="0x08000000" size="0x20000" default="1"/>
+        <memory    name="IROM1"       access="rx"  start="0x10000000" size="0x40000" default="1" startup="1"/>
+
+        <algorithm Pname="Cortex-M0p" name="Flash/CY8C6xx4.FLM"             start="0x10000000" size="0x00040000" RAMstart="0x08002400" RAMsize="0x8000" default ="0" style="Keil"/>
+        <algorithm Pname="Cortex-M0p" name="Flash/CY8C6xx4_sect128KB.FLM"   start="0x10000000" size="0x00040000" RAMstart="0x08002400" RAMsize="0x8000" default ="1" style="Keil"/>
+        <algorithm Pname="Cortex-M0p" name="Flash/CY8C6xxA_SFLASH_USER.FLM" start="0x16000800" size="0x00000800" RAMstart="0x08002400" RAMsize="0x8000" default ="1" style="Keil"/>
+        <algorithm Pname="Cortex-M0p" name="Flash/CY8C6xxA_SFLASH_NAR.FLM"  start="0x16001A00" size="0x00000200" RAMstart="0x08002400" RAMsize="0x8000" default ="0" style="Keil"/>
+        <algorithm Pname="Cortex-M0p" name="Flash/CY8C6xxA_SFLASH_PKEY.FLM" start="0x16005A00" size="0x00000C00" RAMstart="0x08002400" RAMsize="0x8000" default ="1" style="Keil"/>
+        <algorithm Pname="Cortex-M0p" name="Flash/CY8C6xxA_SFLASH_TOC2.FLM" start="0x16007C00" size="0x00000400" RAMstart="0x08002400" RAMsize="0x8000" default ="1" style="Keil"/>
+        <algorithm Pname="Cortex-M0p" name="Flash/CY8C6xxA_SMIF.FLM"        start="0x18000000" size="0x08000000" RAMstart="0x08002400" RAMsize="0x8000" default ="0" style="Keil"/>
+        <algorithm Pname="Cortex-M0p" name="Flash/CY8C6xxA_EFUSE.FLM"       start="0x90700000" size="0x00000400" RAMstart="0x08002400" RAMsize="0x8000" default ="0" style="Keil"/>
+        <algorithm Pname="Cortex-M4"  name="Flash/CY8C6xx4.FLM"             start="0x10000000" size="0x00040000" RAMstart="0x08002400" RAMsize="0x8000" default ="0" style="Keil"/>
+        <algorithm Pname="Cortex-M4"  name="Flash/CY8C6xx4_sect128KB.FLM"   start="0x10000000" size="0x00040000" RAMstart="0x08002400" RAMsize="0x8000" default ="1" style="Keil"/>
+        <algorithm Pname="Cortex-M4"  name="Flash/CY8C6xxA_SFLASH_USER.FLM" start="0x16000800" size="0x00000800" RAMstart="0x08002400" RAMsize="0x8000" default ="1" style="Keil"/>
+        <algorithm Pname="Cortex-M4"  name="Flash/CY8C6xxA_SFLASH_NAR.FLM"  start="0x16001A00" size="0x00000200" RAMstart="0x08002400" RAMsize="0x8000" default ="0" style="Keil"/>
+        <algorithm Pname="Cortex-M4"  name="Flash/CY8C6xxA_SFLASH_PKEY.FLM" start="0x16005A00" size="0x00000C00" RAMstart="0x08002400" RAMsize="0x8000" default ="1" style="Keil"/>
+        <algorithm Pname="Cortex-M4"  name="Flash/CY8C6xxA_SFLASH_TOC2.FLM" start="0x16007C00" size="0x00000400" RAMstart="0x08002400" RAMsize="0x8000" default ="1" style="Keil"/>
+        <algorithm Pname="Cortex-M4"  name="Flash/CY8C6xxA_SMIF.FLM"        start="0x18000000" size="0x08000000" RAMstart="0x08002400" RAMsize="0x8000" default ="0" style="Keil"/>
+        <algorithm Pname="Cortex-M4"  name="Flash/CY8C6xxA_EFUSE.FLM"       start="0x90700000" size="0x00000400" RAMstart="0x08002400" RAMsize="0x8000" default ="0" style="Keil"/>
+      </device>
+      <device Dname="CY8C6244LQI-S4D12">
+        <compile   define="CY8C6244LQI_S4D12" />
+        <debug     Pname="Cortex-M4"  svd="SVD/psoc6_04.svd"/>
+        <debug     Pname="Cortex-M0p" svd="SVD/psoc6_04.svd"/>
+        <memory    name="IRAM1"       access="rwx" start="0x08000000" size="0x20000" default="1"/>
+        <memory    name="IROM1"       access="rx"  start="0x10000000" size="0x40000" default="1" startup="1"/>
+
+        <algorithm Pname="Cortex-M0p" name="Flash/CY8C6xx4.FLM"             start="0x10000000" size="0x00040000" RAMstart="0x08002400" RAMsize="0x8000" default ="0" style="Keil"/>
+        <algorithm Pname="Cortex-M0p" name="Flash/CY8C6xx4_sect128KB.FLM"   start="0x10000000" size="0x00040000" RAMstart="0x08002400" RAMsize="0x8000" default ="1" style="Keil"/>
+        <algorithm Pname="Cortex-M0p" name="Flash/CY8C6xxA_SFLASH_USER.FLM" start="0x16000800" size="0x00000800" RAMstart="0x08002400" RAMsize="0x8000" default ="1" style="Keil"/>
+        <algorithm Pname="Cortex-M0p" name="Flash/CY8C6xxA_SFLASH_NAR.FLM"  start="0x16001A00" size="0x00000200" RAMstart="0x08002400" RAMsize="0x8000" default ="0" style="Keil"/>
+        <algorithm Pname="Cortex-M0p" name="Flash/CY8C6xxA_SFLASH_PKEY.FLM" start="0x16005A00" size="0x00000C00" RAMstart="0x08002400" RAMsize="0x8000" default ="1" style="Keil"/>
+        <algorithm Pname="Cortex-M0p" name="Flash/CY8C6xxA_SFLASH_TOC2.FLM" start="0x16007C00" size="0x00000400" RAMstart="0x08002400" RAMsize="0x8000" default ="1" style="Keil"/>
+        <algorithm Pname="Cortex-M0p" name="Flash/CY8C6xxA_SMIF.FLM"        start="0x18000000" size="0x08000000" RAMstart="0x08002400" RAMsize="0x8000" default ="0" style="Keil"/>
+        <algorithm Pname="Cortex-M0p" name="Flash/CY8C6xxA_EFUSE.FLM"       start="0x90700000" size="0x00000400" RAMstart="0x08002400" RAMsize="0x8000" default ="0" style="Keil"/>
+        <algorithm Pname="Cortex-M4"  name="Flash/CY8C6xx4.FLM"             start="0x10000000" size="0x00040000" RAMstart="0x08002400" RAMsize="0x8000" default ="0" style="Keil"/>
+        <algorithm Pname="Cortex-M4"  name="Flash/CY8C6xx4_sect128KB.FLM"   start="0x10000000" size="0x00040000" RAMstart="0x08002400" RAMsize="0x8000" default ="1" style="Keil"/>
+        <algorithm Pname="Cortex-M4"  name="Flash/CY8C6xxA_SFLASH_USER.FLM" start="0x16000800" size="0x00000800" RAMstart="0x08002400" RAMsize="0x8000" default ="1" style="Keil"/>
+        <algorithm Pname="Cortex-M4"  name="Flash/CY8C6xxA_SFLASH_NAR.FLM"  start="0x16001A00" size="0x00000200" RAMstart="0x08002400" RAMsize="0x8000" default ="0" style="Keil"/>
+        <algorithm Pname="Cortex-M4"  name="Flash/CY8C6xxA_SFLASH_PKEY.FLM" start="0x16005A00" size="0x00000C00" RAMstart="0x08002400" RAMsize="0x8000" default ="1" style="Keil"/>
+        <algorithm Pname="Cortex-M4"  name="Flash/CY8C6xxA_SFLASH_TOC2.FLM" start="0x16007C00" size="0x00000400" RAMstart="0x08002400" RAMsize="0x8000" default ="1" style="Keil"/>
+        <algorithm Pname="Cortex-M4"  name="Flash/CY8C6xxA_SMIF.FLM"        start="0x18000000" size="0x08000000" RAMstart="0x08002400" RAMsize="0x8000" default ="0" style="Keil"/>
+        <algorithm Pname="Cortex-M4"  name="Flash/CY8C6xxA_EFUSE.FLM"       start="0x90700000" size="0x00000400" RAMstart="0x08002400" RAMsize="0x8000" default ="0" style="Keil"/>
       </device>
     </family>
     <family Dfamily="PSoC 63" Dvendor="Cypress:19">
@@ -1688,75 +2273,59 @@
       <debug Pname="Cortex-M0p" __ap="1" defaultResetSequence="ResetProcessor"/> <!-- Cortex-M0+ is auxiliary CPU, hence default is local CPU reset -->
       <sequences>
         <sequence name="DebugPortStart">
-
           <block info="Read DP CTRL/STAT">
             __var SW_DP_ABORT  = 0x0;
             __var DP_CTRL_STAT = 0x4;
             __var DP_SELECT    = 0x8;
             __var powered_down = 0;
-            // Switch to DP Register Bank 0
-            WriteDP(DP_SELECT, __ap &lt;&lt; 24);     // Explicitly set APSEL to current AP selection
-
+            // Switch to DP Register Bank 0. Explicitly set APSEL to current AP selection
+            WriteDP(DP_SELECT, __ap &lt;&lt; 24);
             // Read DP CTRL/STAT Register and check if CSYSPWRUPACK and CDBGPWRUPACK bits are set
             powered_down = ((ReadDP(DP_CTRL_STAT) &amp; 0xA0000000) != 0xA0000000);
           </block>
-
           <control if="powered_down">
-
             <block info="Power Up System &amp; Debug">
               // Request Debug/System Power-Up
+              // Ignore error here: even there is a polling in the next block, CMSIS-DAP transports reads DP->RDBUFF register
+              // right after write to DP->CTRL_STAT. This will fail for some cases - for example if device is waking from DeepSleep.
+              __errorcontrol = 1;
               WriteDP(DP_CTRL_STAT, 0x50000000);
+              __errorcontrol = 0;
             </block>
-
             <!-- Wait for Power-Up Request to be acknowledged -->
             <control while="(ReadDP(DP_CTRL_STAT) &amp; 0xA0000000) != 0xA0000000" timeout="1000000" info="Wait for power acknowledged"/>
-
-
             <!-- CDBGRSTREQ on PSoC6 behaves like Power-On Reset. Not desired when starting the Debug Port
-
             <block info="Debug Reset">
               __errorcontrol = 1;
               // Request Debug Reset
               WriteDP(DP_CTRL_STAT, 0x54000000);
-
               // CDBGRSTREQ is equivalent to Power-On Reset and fully reboots the device.
               // Depending on the user application the reboot can take up to 600ms.
               DAP_Delay(600000);
               __errorcontrol = 0;
             </block>
             -->
-
             <!-- Wait for Debug Reset to be acknowledged, don't issue error on timeout to deal with improperly connected Debug Reset -->
             <!-- <control while="(ReadDP(DP_CTRL_STAT) &amp; 0xA8000000) != 0xA8000000" timeout="300000" info="Wait for Debug Reset Acknowledge"/> -->
-
-
             <!-- JTAG Specific Part of sequence -->
             <control if="(__protocol &amp; 0xFFFF) == 1">
-
               <block info="JTAG: Clear Sticky Bits">
                 // Init AP Transfer Mode, Transaction Counter, and Lane Mask (Normal Transfer Mode, Include all Byte Lanes)
                 // Additionally clear STICKYORUN, STICKYCMP, and STICKYERR bits by writing '1'
                 WriteDP(DP_CTRL_STAT, 0x50000F32);
               </block>
-
             </control>
-
             <!-- SWD Specific Part of sequence -->
             <control if="(__protocol &amp; 0xFFFF) == 2">
-
               <block info="SWD: Init SWD &amp; Clear Sticky Bits">
                 // Init AP Transfer Mode, Transaction Counter, and Lane Mask (Normal Transfer Mode, Include all Byte Lanes)
                 WriteDP(DP_CTRL_STAT, 0x50000F00);
-
                 // Clear WDATAERR, STICKYORUN, STICKYCMP, and STICKYERR bits of CTRL/STAT Register by write to ABORT register
                 WriteDP(SW_DP_ABORT, 0x0000001E);
               </block>
             </control>
-
           </control>
-
         </sequence>
-
         <!-- HW Reset causes a reboot of the device which also resets debug.
              - Using this as a prereset is OK to potentially wake up the system from DeepSleep.
              - Using this in the middle of the debug session will break the connection unless recovery
@@ -1766,46 +2335,35 @@
           <block>
             __var nReset      = 0x80;
             __var canReadPins = 0;
-
             // Deassert nRESET line
             canReadPins = (DAP_SWJ_Pins(0x00, nReset, 0) != 0xFFFFFFFF);
           </block>
-
           <!-- Keep reset active for 50 ms -->
           <control while="1" timeout="50000"/>
           <control if="canReadPins">
-
             <!-- Assert nRESET line and wait max. 1s for recovery -->
             <control while="(DAP_SWJ_Pins(nReset, nReset, 0) &amp; nReset) == 0" timeout="1000000"/>
-
           </control>
-
           <control if="!canReadPins">
-
             <block>
               // Assert nRESET line
               DAP_SWJ_Pins(nReset, nReset, 0);
             </block>
-
             <!-- Wait 100ms for recovery if nRESET not readable -->
             <control while="1" timeout="100000"/>
           </control>
-
           <block>
             // Give the PSoC6 bootloader time to finish (can be up to 600ms)
             DAP_Delay(600000);
           </block>
         </sequence>
-
         <!-- Cortex-M0+ Processor reset via PSoC6 CPU Sub-System Controller. Cortex-M0+ doesn't have VECTRESET. -->
         <sequence name="ResetProcessor" Pname="Cortex-M0p">
           <block>
             __var CPUSS_CM0_CTL_Addr = 0x40210000;    // CM0+ Control Register
             __var DHCSR_Addr = 0xE000EDF0;
-
             Write32(CPUSS_CM0_CTL_Addr, 0x05FA0000);  // Reset CM0+
           </block>
-
           <!-- Reset Recovery: Wait for CPUSS_CM0_CTL to  bit to clear on read -->
           <control while="(Read32(DHCSR_Addr) &amp; 0x02000000)" timeout="500000"/>
         </sequence>
@@ -2284,75 +2842,59 @@
       <debug Pname="Cortex-M4"  __ap="2" defaultResetSequence="ResetSystem"/>
       <sequences>
         <sequence name="DebugPortStart">
-
           <block info="Read DP CTRL/STAT">
             __var SW_DP_ABORT  = 0x0;
             __var DP_CTRL_STAT = 0x4;
             __var DP_SELECT    = 0x8;
             __var powered_down = 0;
-            // Switch to DP Register Bank 0
-            WriteDP(DP_SELECT, __ap &lt;&lt; 24);     // Explicitly set APSEL to current AP selection
-
+            // Switch to DP Register Bank 0. Explicitly set APSEL to current AP selection
+            WriteDP(DP_SELECT, __ap &lt;&lt; 24);
             // Read DP CTRL/STAT Register and check if CSYSPWRUPACK and CDBGPWRUPACK bits are set
             powered_down = ((ReadDP(DP_CTRL_STAT) &amp; 0xA0000000) != 0xA0000000);
           </block>
-
           <control if="powered_down">
-
             <block info="Power Up System &amp; Debug">
               // Request Debug/System Power-Up
+              // Ignore error here: even there is a polling in the next block, CMSIS-DAP transports reads DP->RDBUFF register
+              // right after write to DP->CTRL_STAT. This will fail for some cases - for example if device is waking from DeepSleep.
+              __errorcontrol = 1;
               WriteDP(DP_CTRL_STAT, 0x50000000);
+              __errorcontrol = 0;
             </block>
-
             <!-- Wait for Power-Up Request to be acknowledged -->
             <control while="(ReadDP(DP_CTRL_STAT) &amp; 0xA0000000) != 0xA0000000" timeout="1000000" info="Wait for power acknowledged"/>
-
-
             <!-- CDBGRSTREQ on PSoC6 behaves like Power-On Reset. Not desired when starting the Debug Port
-
             <block info="Debug Reset">
               __errorcontrol = 1;
               // Request Debug Reset
               WriteDP(DP_CTRL_STAT, 0x54000000);
-
               // CDBGRSTREQ is equivalent to Power-On Reset and fully reboots the device.
               // Depending on the user application the reboot can take up to 600ms.
               DAP_Delay(600000);
               __errorcontrol = 0;
             </block>
             -->
-
             <!-- Wait for Debug Reset to be acknowledged, don't issue error on timeout to deal with improperly connected Debug Reset -->
             <!-- <control while="(ReadDP(DP_CTRL_STAT) &amp; 0xA8000000) != 0xA8000000" timeout="300000" info="Wait for Debug Reset Acknowledge"/> -->
-
-
             <!-- JTAG Specific Part of sequence -->
             <control if="(__protocol &amp; 0xFFFF) == 1">
-
               <block info="JTAG: Clear Sticky Bits">
                 // Init AP Transfer Mode, Transaction Counter, and Lane Mask (Normal Transfer Mode, Include all Byte Lanes)
                 // Additionally clear STICKYORUN, STICKYCMP, and STICKYERR bits by writing '1'
                 WriteDP(DP_CTRL_STAT, 0x50000F32);
               </block>
-
             </control>
-
             <!-- SWD Specific Part of sequence -->
             <control if="(__protocol &amp; 0xFFFF) == 2">
-
               <block info="SWD: Init SWD &amp; Clear Sticky Bits">
                 // Init AP Transfer Mode, Transaction Counter, and Lane Mask (Normal Transfer Mode, Include all Byte Lanes)
                 WriteDP(DP_CTRL_STAT, 0x50000F00);
-
                 // Clear WDATAERR, STICKYORUN, STICKYCMP, and STICKYERR bits of CTRL/STAT Register by write to ABORT register
                 WriteDP(SW_DP_ABORT, 0x0000001E);
               </block>
             </control>
-
           </control>
-
         </sequence>
-
         <!-- HW Reset causes a reboot of the device which also resets debug.
              - Using this as a prereset is OK to potentially wake up the system from DeepSleep.
              - Using this in the middle of the debug session will break the connection unless recovery
@@ -2362,31 +2904,23 @@
           <block>
             __var nReset      = 0x80;
             __var canReadPins = 0;
-
             // Deassert nRESET line
             canReadPins = (DAP_SWJ_Pins(0x00, nReset, 0) != 0xFFFFFFFF);
           </block>
-
           <!-- Keep reset active for 50 ms -->
           <control while="1" timeout="50000"/>
           <control if="canReadPins">
-
             <!-- Assert nRESET line and wait max. 1s for recovery -->
             <control while="(DAP_SWJ_Pins(nReset, nReset, 0) &amp; nReset) == 0" timeout="1000000"/>
-
           </control>
-
           <control if="!canReadPins">
-
             <block>
               // Assert nRESET line
               DAP_SWJ_Pins(nReset, nReset, 0);
             </block>
-
             <!-- Wait 100ms for recovery if nRESET not readable -->
             <control while="1" timeout="100000"/>
           </control>
-
           <block>
             // Give the PSoC6 bootloader time to finish (can be up to 600ms)
             DAP_Delay(600000);
@@ -2562,6 +3096,39 @@
       <accept Dvendor="Cypress:19" Dname="CY8C6136FTI-F42"/>
       <accept Dvendor="Cypress:19" Dname="CY8C6137WI-F54"/>
       <accept Dvendor="Cypress:19" Dname="CY8C6117WI-F34"/>
+      <accept Dvendor="Cypress:19" Dname="CY8C614ABZI-S2F04"/>
+      <accept Dvendor="Cypress:19" Dname="CY8C614AAZI-S2F04"/>
+      <accept Dvendor="Cypress:19" Dname="CY8C614AFNI-S2F03"/>
+      <accept Dvendor="Cypress:19" Dname="CY8C614AAZI-S2F14"/>
+      <accept Dvendor="Cypress:19" Dname="CY8C614ABZI-S2F44"/>
+      <accept Dvendor="Cypress:19" Dname="CY8C614AAZI-S2F44"/>
+      <accept Dvendor="Cypress:19" Dname="CY8C614AFNI-S2F43"/>
+      <accept Dvendor="Cypress:19" Dname="CY8C6148BZI-S2F44"/>
+      <accept Dvendor="Cypress:19" Dname="CY8C6148AZI-S2F44"/>
+      <accept Dvendor="Cypress:19" Dname="CY8C6148FNI-S2F43"/>
+      <accept Dvendor="Cypress:19" Dname="CY8C6145AZI-S3F72"/>
+      <accept Dvendor="Cypress:19" Dname="CY8C6145LQI-S3F72"/>
+      <accept Dvendor="Cypress:19" Dname="CY8C6145FNI-S3F71"/>
+      <accept Dvendor="Cypress:19" Dname="CY8C6145AZI-S3F62"/>
+      <accept Dvendor="Cypress:19" Dname="CY8C6145LQI-S3F62"/>
+      <accept Dvendor="Cypress:19" Dname="CY8C6145AZI-S3F42"/>
+      <accept Dvendor="Cypress:19" Dname="CY8C6145LQI-S3F42"/>
+      <accept Dvendor="Cypress:19" Dname="CY8C6145FNI-S3F41"/>
+      <accept Dvendor="Cypress:19" Dname="CY8C6145AZI-S3F12"/>
+      <accept Dvendor="Cypress:19" Dname="CY8C6145LQI-S3F12"/>
+      <accept Dvendor="Cypress:19" Dname="CY8C6145FNI-S3F11"/>
+      <accept Dvendor="Cypress:19" Dname="CY8C6145AZI-S3F02"/>
+      <accept Dvendor="Cypress:19" Dname="CY8C6145LQI-S3F02"/>
+      <accept Dvendor="Cypress:19" Dname="CY8C6144AZI-S4F92"/>
+      <accept Dvendor="Cypress:19" Dname="CY8C6144LQI-S4F92"/>
+      <accept Dvendor="Cypress:19" Dname="CY8C6144AZI-S4F93"/>
+      <accept Dvendor="Cypress:19" Dname="CY8C6144AZI-S4F82"/>
+      <accept Dvendor="Cypress:19" Dname="CY8C6144LQI-S4F82"/>
+      <accept Dvendor="Cypress:19" Dname="CY8C6144AZI-S4F83"/>
+      <accept Dvendor="Cypress:19" Dname="CY8C6144AZI-S4F62"/>
+      <accept Dvendor="Cypress:19" Dname="CY8C6144LQI-S4F62"/>
+      <accept Dvendor="Cypress:19" Dname="CY8C6144AZI-S4F12"/>
+      <accept Dvendor="Cypress:19" Dname="CY8C6144LQI-S4F12"/>
     </condition>
     <condition id="PSoC 62">
       <description>PSoC 62 devices</description>
@@ -2576,10 +3143,6 @@
       <accept Dvendor="Cypress:19" Dname="CY8C6247BZI-AUD54"/>
       <accept Dvendor="Cypress:19" Dname="CY8C6247BFI-D54"/>
       <accept Dvendor="Cypress:19" Dname="CY8C6247WI-D54"/>
-      <accept Dvendor="Cypress:19" Dname="CY8C624ABZI-D44"/>
-      <accept Dvendor="Cypress:19" Dname="CY8C624AAZI-D44"/>
-      <accept Dvendor="Cypress:19" Dname="CY8C624AFNI-D43"/>
-      <accept Dvendor="Cypress:19" Dname="CY8C624ALQI-D42"/>
       <accept Dvendor="Cypress:19" Dname="CY8C624ABZI-S2D44A0"/>
       <accept Dvendor="Cypress:19" Dname="CY8C624ABZI-S2D44"/>
       <accept Dvendor="Cypress:19" Dname="CY8C624AAZI-S2D44"/>
@@ -2591,6 +3154,7 @@
       <accept Dvendor="Cypress:19" Dname="CY8C6248BZI-S2D44"/>
       <accept Dvendor="Cypress:19" Dname="CY8C6248AZI-S2D44"/>
       <accept Dvendor="Cypress:19" Dname="CY8C6248FNI-S2D43"/>
+      <accept Dvendor="Cypress:19" Dname="CY8C624ABZI-D44"/>
       <accept Dvendor="Cypress:19" Dname="CY8C6245AZI-S3D72"/>
       <accept Dvendor="Cypress:19" Dname="CY8C6245LQI-S3D72"/>
       <accept Dvendor="Cypress:19" Dname="CY8C6245FNI-S3D71"/>
@@ -2604,7 +3168,16 @@
       <accept Dvendor="Cypress:19" Dname="CY8C6245FNI-S3D11"/>
       <accept Dvendor="Cypress:19" Dname="CY8C6245AZI-S3D02"/>
       <accept Dvendor="Cypress:19" Dname="CY8C6245LQI-S3D02"/>
-      <accept Dvendor="Cypress:19" Dname="CY8C6245W-S3D72"/>
+      <accept Dvendor="Cypress:19" Dname="CY8C6244AZI-S4D92"/>
+      <accept Dvendor="Cypress:19" Dname="CY8C6244LQI-S4D92"/>
+      <accept Dvendor="Cypress:19" Dname="CY8C6244AZI-S4D93"/>
+      <accept Dvendor="Cypress:19" Dname="CY8C6244AZI-S4D82"/>
+      <accept Dvendor="Cypress:19" Dname="CY8C6244LQI-S4D82"/>
+      <accept Dvendor="Cypress:19" Dname="CY8C6244AZI-S4D83"/>
+      <accept Dvendor="Cypress:19" Dname="CY8C6244AZI-S4D62"/>
+      <accept Dvendor="Cypress:19" Dname="CY8C6244LQI-S4D62"/>
+      <accept Dvendor="Cypress:19" Dname="CY8C6244AZI-S4D12"/>
+      <accept Dvendor="Cypress:19" Dname="CY8C6244LQI-S4D12"/>
     </condition>
     <condition id="PSoC 63">
       <description>PSoC 63 devices</description>
