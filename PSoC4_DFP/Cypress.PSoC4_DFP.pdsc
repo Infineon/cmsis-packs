@@ -7,7 +7,7 @@
   <supportContact>https://www.cypress.com/support</supportContact>
   <license>APACHE_LICENSE.txt</license>
   <releases>
-    <release version="1.0.0" date="2020-07-15">
+    <release version="1.1.0" date="2020-09-07">
       First Release version of PSoC® 4 Device Family Pack.
       Based on Cypress PSoC® 4 CMSIS Flash Loaders v2.0.0.25.
     </release>
@@ -2281,6 +2281,181 @@
         <algorithm name="Flash/CY8C4xxx.FLM" start="0x0" size="0x40000" RAMstart="0x20000300" RAMsize="0x0D00" default ="1" style="Keil"/>
       </device>
     </family>
+    <family Dfamily="PSoC 4100S Max" Dvendor="Cypress:19">
+      <processor Pname="Cortex-M0p" Dcore="Cortex-M0+" DcoreVersion="r0p1" Dfpu="NO_FPU" Dmpu="MPU" Dendian="Little-endian" Dclock="48000000" />
+      <description>
+        PSoC 4100S Max devices.
+      </description>
+      <book name="README.txt" title="Cypress PSoC 4 DFP user guide"/>
+      <device Dname="CY8C4148AZI-S548">
+        <compile   define="CY8C4148AZI_S548" />
+        <debug     Pname="Cortex-M0p" svd="SVD/psoc4100smax.svd"/>
+        <memory    name="IRAM1"       access="rwx" start="0x20000000" size="0x8000" default="1"/>
+        <memory    name="IROM1"       access="rx"  start="0x00000000" size="0x40000" default="1" startup="1"/>
+        <algorithm name="Flash/CY8C4xxx.FLM" start="0x0" size="0x40000" RAMstart="0x20000300" RAMsize="0x0D00" default ="1" style="Keil"/>
+      </device>
+      <device Dname="CY8C4148AZI-S553">
+        <compile   define="CY8C4148AZI_S553" />
+        <debug     Pname="Cortex-M0p" svd="SVD/psoc4100smax.svd"/>
+        <memory    name="IRAM1"       access="rwx" start="0x20000000" size="0x8000" default="1"/>
+        <memory    name="IROM1"       access="rx"  start="0x00000000" size="0x40000" default="1" startup="1"/>
+        <algorithm name="Flash/CY8C4xxx.FLM" start="0x0" size="0x40000" RAMstart="0x20000300" RAMsize="0x0D00" default ="1" style="Keil"/>
+      </device>
+      <device Dname="CY8C4148AZI-S555">
+        <compile   define="CY8C4148AZI_S555" />
+        <debug     Pname="Cortex-M0p" svd="SVD/psoc4100smax.svd"/>
+        <memory    name="IRAM1"       access="rwx" start="0x20000000" size="0x8000" default="1"/>
+        <memory    name="IROM1"       access="rx"  start="0x00000000" size="0x40000" default="1" startup="1"/>
+        <algorithm name="Flash/CY8C4xxx.FLM" start="0x0" size="0x40000" RAMstart="0x20000300" RAMsize="0x0D00" default ="1" style="Keil"/>
+      </device>
+      <device Dname="CY8C4148AZI-S558">
+        <compile   define="CY8C4148AZI_S558" />
+        <debug     Pname="Cortex-M0p" svd="SVD/psoc4100smax.svd"/>
+        <memory    name="IRAM1"       access="rwx" start="0x20000000" size="0x8000" default="1"/>
+        <memory    name="IROM1"       access="rx"  start="0x00000000" size="0x40000" default="1" startup="1"/>
+        <algorithm name="Flash/CY8C4xxx.FLM" start="0x0" size="0x40000" RAMstart="0x20000300" RAMsize="0x0D00" default ="1" style="Keil"/>
+      </device>
+      <device Dname="CY8C4148AZI-S583">
+        <compile   define="CY8C4148AZI_S583" />
+        <debug     Pname="Cortex-M0p" svd="SVD/psoc4100smax.svd"/>
+        <memory    name="IRAM1"       access="rwx" start="0x20000000" size="0x8000" default="1"/>
+        <memory    name="IROM1"       access="rx"  start="0x00000000" size="0x40000" default="1" startup="1"/>
+        <algorithm name="Flash/CY8C4xxx.FLM" start="0x0" size="0x40000" RAMstart="0x20000300" RAMsize="0x0D00" default ="1" style="Keil"/>
+      </device>
+      <device Dname="CY8C4148AZI-S585">
+        <compile   define="CY8C4148AZI_S585" />
+        <debug     Pname="Cortex-M0p" svd="SVD/psoc4100smax.svd"/>
+        <memory    name="IRAM1"       access="rwx" start="0x20000000" size="0x8000" default="1"/>
+        <memory    name="IROM1"       access="rx"  start="0x00000000" size="0x40000" default="1" startup="1"/>
+        <algorithm name="Flash/CY8C4xxx.FLM" start="0x0" size="0x40000" RAMstart="0x20000300" RAMsize="0x0D00" default ="1" style="Keil"/>
+      </device>
+      <device Dname="CY8C4148AZI-S588">
+        <compile   define="CY8C4148AZI_S588" />
+        <debug     Pname="Cortex-M0p" svd="SVD/psoc4100smax.svd"/>
+        <memory    name="IRAM1"       access="rwx" start="0x20000000" size="0x8000" default="1"/>
+        <memory    name="IROM1"       access="rx"  start="0x00000000" size="0x40000" default="1" startup="1"/>
+        <algorithm name="Flash/CY8C4xxx.FLM" start="0x0" size="0x40000" RAMstart="0x20000300" RAMsize="0x0D00" default ="1" style="Keil"/>
+      </device>
+      <device Dname="CY8C4148AZI-S593">
+        <compile   define="CY8C4148AZI_S593" />
+        <debug     Pname="Cortex-M0p" svd="SVD/psoc4100smax.svd"/>
+        <memory    name="IRAM1"       access="rwx" start="0x20000000" size="0x8000" default="1"/>
+        <memory    name="IROM1"       access="rx"  start="0x00000000" size="0x40000" default="1" startup="1"/>
+        <algorithm name="Flash/CY8C4xxx.FLM" start="0x0" size="0x40000" RAMstart="0x20000300" RAMsize="0x0D00" default ="1" style="Keil"/>
+      </device>
+      <device Dname="CY8C4148AZI-S595">
+        <compile   define="CY8C4148AZI_S595" />
+        <debug     Pname="Cortex-M0p" svd="SVD/psoc4100smax.svd"/>
+        <memory    name="IRAM1"       access="rwx" start="0x20000000" size="0x8000" default="1"/>
+        <memory    name="IROM1"       access="rx"  start="0x00000000" size="0x40000" default="1" startup="1"/>
+        <algorithm name="Flash/CY8C4xxx.FLM" start="0x0" size="0x40000" RAMstart="0x20000300" RAMsize="0x0D00" default ="1" style="Keil"/>
+      </device>
+      <device Dname="CY8C4148AZI-S598">
+        <compile   define="CY8C4148AZI_S598" />
+        <debug     Pname="Cortex-M0p" svd="SVD/psoc4100smax.svd"/>
+        <memory    name="IRAM1"       access="rwx" start="0x20000000" size="0x8000" default="1"/>
+        <memory    name="IROM1"       access="rx"  start="0x00000000" size="0x40000" default="1" startup="1"/>
+        <algorithm name="Flash/CY8C4xxx.FLM" start="0x0" size="0x40000" RAMstart="0x20000300" RAMsize="0x0D00" default ="1" style="Keil"/>
+      </device>
+      <device Dname="CY8C4149AZI-S545">
+        <compile   define="CY8C4149AZI_S545" />
+        <debug     Pname="Cortex-M0p" svd="SVD/psoc4100smax.svd"/>
+        <memory    name="IRAM1"       access="rwx" start="0x20000000" size="0x8000" default="1"/>
+        <memory    name="IROM1"       access="rx"  start="0x00000000" size="0x60000" default="1" startup="1"/>
+        <algorithm name="Flash/CY8C4xxx.FLM" start="0x0" size="0x60000" RAMstart="0x20000300" RAMsize="0x0D00" default ="1" style="Keil"/>
+      </device>
+      <device Dname="CY8C4149AZI-S548">
+        <compile   define="CY8C4149AZI_S548" />
+        <debug     Pname="Cortex-M0p" svd="SVD/psoc4100smax.svd"/>
+        <memory    name="IRAM1"       access="rwx" start="0x20000000" size="0x8000" default="1"/>
+        <memory    name="IROM1"       access="rx"  start="0x00000000" size="0x60000" default="1" startup="1"/>
+        <algorithm name="Flash/CY8C4xxx.FLM" start="0x0" size="0x60000" RAMstart="0x20000300" RAMsize="0x0D00" default ="1" style="Keil"/>
+      </device>
+      <device Dname="CY8C4149AZI-S555">
+        <compile   define="CY8C4149AZI_S555" />
+        <debug     Pname="Cortex-M0p" svd="SVD/psoc4100smax.svd"/>
+        <memory    name="IRAM1"       access="rwx" start="0x20000000" size="0x8000" default="1"/>
+        <memory    name="IROM1"       access="rx"  start="0x00000000" size="0x60000" default="1" startup="1"/>
+        <algorithm name="Flash/CY8C4xxx.FLM" start="0x0" size="0x60000" RAMstart="0x20000300" RAMsize="0x0D00" default ="1" style="Keil"/>
+      </device>
+      <device Dname="CY8C4149AZI-S558">
+        <compile   define="CY8C4149AZI_S558" />
+        <debug     Pname="Cortex-M0p" svd="SVD/psoc4100smax.svd"/>
+        <memory    name="IRAM1"       access="rwx" start="0x20000000" size="0x8000" default="1"/>
+        <memory    name="IROM1"       access="rx"  start="0x00000000" size="0x60000" default="1" startup="1"/>
+        <algorithm name="Flash/CY8C4xxx.FLM" start="0x0" size="0x60000" RAMstart="0x20000300" RAMsize="0x0D00" default ="1" style="Keil"/>
+      </device>
+      <device Dname="CY8C4149AZI-S565">
+        <compile   define="CY8C4149AZI_S565" />
+        <debug     Pname="Cortex-M0p" svd="SVD/psoc4100smax.svd"/>
+        <memory    name="IRAM1"       access="rwx" start="0x20000000" size="0x8000" default="1"/>
+        <memory    name="IROM1"       access="rx"  start="0x00000000" size="0x60000" default="1" startup="1"/>
+        <algorithm name="Flash/CY8C4xxx.FLM" start="0x0" size="0x60000" RAMstart="0x20000300" RAMsize="0x0D00" default ="1" style="Keil"/>
+      </device>
+      <device Dname="CY8C4149AZI-S568">
+        <compile   define="CY8C4149AZI_S568" />
+        <debug     Pname="Cortex-M0p" svd="SVD/psoc4100smax.svd"/>
+        <memory    name="IRAM1"       access="rwx" start="0x20000000" size="0x8000" default="1"/>
+        <memory    name="IROM1"       access="rx"  start="0x00000000" size="0x60000" default="1" startup="1"/>
+        <algorithm name="Flash/CY8C4xxx.FLM" start="0x0" size="0x60000" RAMstart="0x20000300" RAMsize="0x0D00" default ="1" style="Keil"/>
+      </device>
+      <device Dname="CY8C4149AZI-S575">
+        <compile   define="CY8C4149AZI_S575" />
+        <debug     Pname="Cortex-M0p" svd="SVD/psoc4100smax.svd"/>
+        <memory    name="IRAM1"       access="rwx" start="0x20000000" size="0x8000" default="1"/>
+        <memory    name="IROM1"       access="rx"  start="0x00000000" size="0x60000" default="1" startup="1"/>
+        <algorithm name="Flash/CY8C4xxx.FLM" start="0x0" size="0x60000" RAMstart="0x20000300" RAMsize="0x0D00" default ="1" style="Keil"/>
+      </device>
+      <device Dname="CY8C4149AZI-S578">
+        <compile   define="CY8C4149AZI_S578" />
+        <debug     Pname="Cortex-M0p" svd="SVD/psoc4100smax.svd"/>
+        <memory    name="IRAM1"       access="rwx" start="0x20000000" size="0x8000" default="1"/>
+        <memory    name="IROM1"       access="rx"  start="0x00000000" size="0x60000" default="1" startup="1"/>
+        <algorithm name="Flash/CY8C4xxx.FLM" start="0x0" size="0x60000" RAMstart="0x20000300" RAMsize="0x0D00" default ="1" style="Keil"/>
+      </device>
+      <device Dname="CY8C4149AZI-S583">
+        <compile   define="CY8C4149AZI_S583" />
+        <debug     Pname="Cortex-M0p" svd="SVD/psoc4100smax.svd"/>
+        <memory    name="IRAM1"       access="rwx" start="0x20000000" size="0x8000" default="1"/>
+        <memory    name="IROM1"       access="rx"  start="0x00000000" size="0x60000" default="1" startup="1"/>
+        <algorithm name="Flash/CY8C4xxx.FLM" start="0x0" size="0x60000" RAMstart="0x20000300" RAMsize="0x0D00" default ="1" style="Keil"/>
+      </device>
+      <device Dname="CY8C4149AZI-S585">
+        <compile   define="CY8C4149AZI_S585" />
+        <debug     Pname="Cortex-M0p" svd="SVD/psoc4100smax.svd"/>
+        <memory    name="IRAM1"       access="rwx" start="0x20000000" size="0x8000" default="1"/>
+        <memory    name="IROM1"       access="rx"  start="0x00000000" size="0x60000" default="1" startup="1"/>
+        <algorithm name="Flash/CY8C4xxx.FLM" start="0x0" size="0x60000" RAMstart="0x20000300" RAMsize="0x0D00" default ="1" style="Keil"/>
+      </device>
+      <device Dname="CY8C4149AZI-S588">
+        <compile   define="CY8C4149AZI_S588" />
+        <debug     Pname="Cortex-M0p" svd="SVD/psoc4100smax.svd"/>
+        <memory    name="IRAM1"       access="rwx" start="0x20000000" size="0x8000" default="1"/>
+        <memory    name="IROM1"       access="rx"  start="0x00000000" size="0x60000" default="1" startup="1"/>
+        <algorithm name="Flash/CY8C4xxx.FLM" start="0x0" size="0x60000" RAMstart="0x20000300" RAMsize="0x0D00" default ="1" style="Keil"/>
+      </device>
+      <device Dname="CY8C4149AZI-S593">
+        <compile   define="CY8C4149AZI_S593" />
+        <debug     Pname="Cortex-M0p" svd="SVD/psoc4100smax.svd"/>
+        <memory    name="IRAM1"       access="rwx" start="0x20000000" size="0x8000" default="1"/>
+        <memory    name="IROM1"       access="rx"  start="0x00000000" size="0x60000" default="1" startup="1"/>
+        <algorithm name="Flash/CY8C4xxx.FLM" start="0x0" size="0x60000" RAMstart="0x20000300" RAMsize="0x0D00" default ="1" style="Keil"/>
+      </device>
+      <device Dname="CY8C4149AZI-S595">
+        <compile   define="CY8C4149AZI_S595" />
+        <debug     Pname="Cortex-M0p" svd="SVD/psoc4100smax.svd"/>
+        <memory    name="IRAM1"       access="rwx" start="0x20000000" size="0x8000" default="1"/>
+        <memory    name="IROM1"       access="rx"  start="0x00000000" size="0x60000" default="1" startup="1"/>
+        <algorithm name="Flash/CY8C4xxx.FLM" start="0x0" size="0x60000" RAMstart="0x20000300" RAMsize="0x0D00" default ="1" style="Keil"/>
+      </device>
+      <device Dname="CY8C4149AZI-S598">
+        <compile   define="CY8C4149AZI_S598" />
+        <debug     Pname="Cortex-M0p" svd="SVD/psoc4100smax.svd"/>
+        <memory    name="IRAM1"       access="rwx" start="0x20000000" size="0x8000" default="1"/>
+        <memory    name="IROM1"       access="rx"  start="0x00000000" size="0x60000" default="1" startup="1"/>
+        <algorithm name="Flash/CY8C4xxx.FLM" start="0x0" size="0x60000" RAMstart="0x20000300" RAMsize="0x0D00" default ="1" style="Keil"/>
+      </device>
+    </family>
     <family Dfamily="PSoC 4500S" Dvendor="Cypress:19">
       <processor Pname="Cortex-M0p" Dcore="Cortex-M0+" DcoreVersion="r0p1" Dfpu="NO_FPU" Dmpu="MPU" Dendian="Little-endian" Dclock="48000000" />
       <description>
@@ -2781,6 +2956,33 @@
       <accept Dvendor="Cypress:19" Dname="CY8C4148AZQ-S455"/>
       <accept Dvendor="Cypress:19" Dname="CY8C4148AXQ-S455"/>
     </condition>
+    <condition id="PSoC 4100S Max">
+      <description>PSoC 4100S Max devices</description>
+      <accept Dvendor="Cypress:19" Dname="CY8C4148AZI-S548"/>
+      <accept Dvendor="Cypress:19" Dname="CY8C4148AZI-S553"/>
+      <accept Dvendor="Cypress:19" Dname="CY8C4148AZI-S555"/>
+      <accept Dvendor="Cypress:19" Dname="CY8C4148AZI-S558"/>
+      <accept Dvendor="Cypress:19" Dname="CY8C4148AZI-S583"/>
+      <accept Dvendor="Cypress:19" Dname="CY8C4148AZI-S585"/>
+      <accept Dvendor="Cypress:19" Dname="CY8C4148AZI-S588"/>
+      <accept Dvendor="Cypress:19" Dname="CY8C4148AZI-S593"/>
+      <accept Dvendor="Cypress:19" Dname="CY8C4148AZI-S595"/>
+      <accept Dvendor="Cypress:19" Dname="CY8C4148AZI-S598"/>
+      <accept Dvendor="Cypress:19" Dname="CY8C4149AZI-S545"/>
+      <accept Dvendor="Cypress:19" Dname="CY8C4149AZI-S548"/>
+      <accept Dvendor="Cypress:19" Dname="CY8C4149AZI-S555"/>
+      <accept Dvendor="Cypress:19" Dname="CY8C4149AZI-S558"/>
+      <accept Dvendor="Cypress:19" Dname="CY8C4149AZI-S565"/>
+      <accept Dvendor="Cypress:19" Dname="CY8C4149AZI-S568"/>
+      <accept Dvendor="Cypress:19" Dname="CY8C4149AZI-S575"/>
+      <accept Dvendor="Cypress:19" Dname="CY8C4149AZI-S578"/>
+      <accept Dvendor="Cypress:19" Dname="CY8C4149AZI-S583"/>
+      <accept Dvendor="Cypress:19" Dname="CY8C4149AZI-S585"/>
+      <accept Dvendor="Cypress:19" Dname="CY8C4149AZI-S588"/>
+      <accept Dvendor="Cypress:19" Dname="CY8C4149AZI-S593"/>
+      <accept Dvendor="Cypress:19" Dname="CY8C4149AZI-S595"/>
+      <accept Dvendor="Cypress:19" Dname="CY8C4149AZI-S598"/>
+    </condition>
     <condition id="PSoC 4500S">
       <description>PSoC 4500S devices</description>
       <accept Dvendor="Cypress:19" Dname="CY8C4546AZI-S473"/>
@@ -2812,6 +3014,7 @@
       <accept condition="PSoC 4000S"/>
       <accept condition="PSoC 4100S"/>
       <accept condition="PSoC 4100S Plus"/>
+      <accept condition="PSoC 4100S Max"/>
       <accept condition="PSoC 4500S"/>
       <require Cclass="Device" Cgroup="Startup" />
     </condition>
