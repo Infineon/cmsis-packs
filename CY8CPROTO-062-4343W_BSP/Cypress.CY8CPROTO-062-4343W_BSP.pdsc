@@ -1,0 +1,56 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<package schemaVersion="1.6.0" xmlns:xs="http://www.w3.org/2001/XMLSchema-instance" xs:noNamespaceSchemaLocation="PACK.xsd">
+  <vendor>Cypress</vendor>
+  <name>CY8CPROTO-062-4343W_BSP</name>
+  <description>Infineon CY8CPROTO-062-4343W Board Support Pack</description>
+  <url>https://github.com/Infineon/cmsis-packs/raw/master/CY8CPROTO-062-4343W_BSP/</url>
+  <supportContact>https://www.cypress.com/support</supportContact>
+  <license>APACHE_LICENSE.txt</license>
+  <releases>
+    <release version="0.1.0" date="2021-10-13">
+      First prototype of CY8CPROTO-062-4343W Board Support Pack.
+    </release>
+  </releases>
+
+  <keywords>
+    <keyword>Infineon</keyword>
+    <keyword>Cypress</keyword>
+    <keyword>Board Support Pack</keyword>
+    <keyword>PSoC 6</keyword>
+    <keyword>CY8CPROTO-062-4343W</keyword>
+  </keywords>
+
+  <requirements>
+    <packages>
+      <package vendor="Cypress" name="PSoC6_DFP" version="1.2.0"/>
+    </packages>
+  </requirements>
+
+  <components>
+  </components>
+
+  <boards>
+    <!-- CY8CPROTO-062-4343W Board Support-->
+    <board vendor="Cypress" name="CY8CPROTO-062-4343W"
+        salesContact="https://www.cypress.com/about-us/sales-offices"
+        orderForm="https://www.cypress.com/documentation/development-kitsboards/psoc-6-wi-fi-bt-prototyping-kit-cy8cproto-062-4343w">
+      <description>PSoC 6 Wi-Fi BT Prototyping Kit (CY8CPROTO-062-4343W)</description>
+      <image small="Images/board_image_small.png" large="Images/board_image.png" public="true"/>
+      <book category="overview"  name="https://www.cypress.com/documentation/development-kitsboards/psoc-6-wi-fi-bt-prototyping-kit-cy8cproto-062-4343w" title="PSoC 6 Wi-Fi BT Prototyping Kit (CY8CPROTO-062-4343W)"/>
+      <book category="manual"    name="https://www.cypress.com/file/457891/download" title="CY8CPROTO-062-4343W User Guide" public="true"/>
+      <book category="setup"     name="https://www.cypress.com/file/451811/download" title="CY8CPROTO-062-4343W Quick Start Guide" public="true"/>
+      <book category="schematic" name="https://www.cypress.com/file/457811/download" title="CY8CPROTO-062-4343W Schematic" public="true"/>
+      <book category="schematic" name="https://www.cypress.com/file/457816/download" title="CY8CMOD-062-4343W Schematics" public="true"/>
+      <book category="layout"    name="https://www.cypress.com/file/451506/download" title="CY8CPROTO-062-4343W Kit Design Files" public="true"/>
+      <book category="layout"    name="https://www.cypress.com/file/451496/download" title="CY8CMOD-062-4343W Module Design Files" public="true"/>
+      <mountedDevice deviceIndex="0" Dvendor="Cypress:19" Dfamily="PSoC 62" Dname="CY8C624ABZI-S2D44"/>
+      <compatibleDevice deviceIndex="0" Dvendor="Cypress:19" Dfamily="PSoC 62"/>
+      <feature type="ODbg" n="1" name="On-board KitProg3"/>
+      <feature type="RAM" n="1" name="1 MB SRAM"/>
+      <feature type="ROM" n="1" name="2 MB Internal Flash"/>
+      <feature type="Memory" n="1" name="S25HL512T 512-Mbit serial NOR flash memory"/>
+      <debugInterface adapter="CMSIS-DAP" connector="Micro-USB"/>
+      <debugInterface adapter="J-Link" connector="10-pin Cortex Debug Connector"/>
+    </board>
+  </boards>
+</package>
