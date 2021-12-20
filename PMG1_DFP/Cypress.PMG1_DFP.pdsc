@@ -1,0 +1,302 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<package schemaVersion="1.6.0" xmlns:xs="http://www.w3.org/2001/XMLSchema-instance" xs:noNamespaceSchemaLocation="PACK.xsd">
+  <vendor>Cypress</vendor>
+  <name>PMG1_DFP</name>
+  <description>Cypress PMG1 Device Support</description>
+  <url>https://github.com/cypresssemiconductorco/cmsis-packs/raw/master/PMG1_DFP/</url>
+  <supportContact>https://www.cypress.com/support</supportContact>
+  <license>APACHE_LICENSE.txt</license>
+  <releases>
+    <release version="1.0.0" date="2021-11-01">
+      - First Release version of EZ-PD™ PMG1 Device Family Pack.
+      - Based on Cypress PMG1 CMSIS Flash Loaders v2.1.0.137.
+    </release>
+  </releases>
+
+  <keywords>
+    <keyword>Cypress</keyword>
+    <keyword>PMG1</keyword>
+    <keyword>DFP</keyword>
+  </keywords>
+
+  <devices>
+    <family Dfamily="PMG1-S0" Dvendor="Cypress:19">
+      <processor Pname="Cortex-M0" Dcore="Cortex-M0" DcoreVersion="r0p0" Dfpu="NO_FPU" Dmpu="NO_MPU" Dendian="Little-endian" Dclock="48000000" />
+      <description>
+        PMG1-S0 devices.
+      </description>
+      <book name="README.txt" title="Cypress PMG1 DFP user guide"/>
+      <sequences>
+        <sequence name="ResetCatchSet">
+          <!--Vector catch is not working on this family -->
+        </sequence>
+        <sequence name="ResetSystem">
+          <block info="Halt CPU and determine application entry point">
+            __var SCS_Addr   = 0xE000E000;
+            __var AIRCR_Addr = SCS_Addr + 0xD0C;
+            __var DHCSR_Addr = SCS_Addr + 0xDF0;
+            __var reset_addr = 0;
+            __var reset_vector_addr = 0;
+            __var app_is_valid = 0;
+
+            // Enable debug, and halt the CPU
+            Write32(DHCSR_Addr, 0xA05F0003);
+            
+            // Get address at reset vector
+            reset_vector_addr = Read32(0x00000004);
+            app_is_valid = reset_vector_addr &lt;= 0x40000;
+          </block>
+          <control if="app_is_valid">
+            <block info="Set BP at app entry and issue a reset">
+              // Enable Breakpoint unit
+              Write32(0xE0002000, 0x00000003);
+            
+              // Map the address bits to the breakpoint compare register
+              // bit map, set the enable breakpoint bit, and the match bits
+              reset_addr = (reset_vector_addr &amp; 0x1FFFFFFC) | 0xC0000001;
+              Write32(0xE0002008, reset_addr);
+              
+              // Issue software reset
+              __errorcontrol = 1;
+              Write32(AIRCR_Addr, 0x05FA0004);
+              __errorcontrol = 0;
+            </block>
+            <control while="(Read32(DHCSR_Addr) &amp; 0x02000000)" timeout="5000"/>
+          </control>
+        </sequence>
+      </sequences>
+      <device Dname="CYPM1011-24LQXI">
+        <compile   define="CYPM1011_24LQXI" />
+        <debug     Pname="Cortex-M0"  svd="SVD/pmg1s0.svd"/>
+        <memory    name="IRAM1"       access="rwx" start="0x20000000" size="0x2000" default="1"/>
+        <memory    name="IROM1"       access="rx"  start="0x00000000" size="0x10000" default="1" startup="1"/>
+        <algorithm name="Flash/CY8C4xxx.FLM" start="0x0" size="0x10000" RAMstart="0x20000300" RAMsize="0x0D00" default ="1" style="Keil"/>
+      </device>
+    </family>
+    <family Dfamily="PMG1-S1" Dvendor="Cypress:19">
+      <processor Pname="Cortex-M0" Dcore="Cortex-M0" DcoreVersion="r0p0" Dfpu="NO_FPU" Dmpu="NO_MPU" Dendian="Little-endian" Dclock="48000000" />
+      <description>
+        PMG1-S1 devices.
+      </description>
+      <book name="README.txt" title="Cypress PMG1 DFP user guide"/>
+      <sequences>
+        <sequence name="ResetCatchSet">
+          <!--Vector catch is not working on this family -->
+        </sequence>
+        <sequence name="ResetSystem">
+          <block info="Halt CPU and determine application entry point">
+            __var SCS_Addr   = 0xE000E000;
+            __var AIRCR_Addr = SCS_Addr + 0xD0C;
+            __var DHCSR_Addr = SCS_Addr + 0xDF0;
+            __var reset_addr = 0;
+            __var reset_vector_addr = 0;
+            __var app_is_valid = 0;
+
+            // Enable debug, and halt the CPU
+            Write32(DHCSR_Addr, 0xA05F0003);
+            
+            // Get address at reset vector
+            reset_vector_addr = Read32(0x00000004);
+            app_is_valid = reset_vector_addr &lt;= 0x40000;
+          </block>
+          <control if="app_is_valid">
+            <block info="Set BP at app entry and issue a reset">
+              // Enable Breakpoint unit
+              Write32(0xE0002000, 0x00000003);
+            
+              // Map the address bits to the breakpoint compare register
+              // bit map, set the enable breakpoint bit, and the match bits
+              reset_addr = (reset_vector_addr &amp; 0x1FFFFFFC) | 0xC0000001;
+              Write32(0xE0002008, reset_addr);
+              
+              // Issue software reset
+              __errorcontrol = 1;
+              Write32(AIRCR_Addr, 0x05FA0004);
+              __errorcontrol = 0;
+            </block>
+            <control while="(Read32(DHCSR_Addr) &amp; 0x02000000)" timeout="5000"/>
+          </control>
+        </sequence>
+      </sequences>
+      <device Dname="CYPM1111-40LQXIT">
+        <compile   define="CYPM1111_40LQXIT" />
+        <debug     Pname="Cortex-M0"  svd="SVD/pmg1s1.svd"/>
+        <memory    name="IRAM1"       access="rwx" start="0x20000000" size="0x3000" default="1"/>
+        <memory    name="IROM1"       access="rx"  start="0x00000000" size="0x20000" default="1" startup="1"/>
+        <algorithm name="Flash/CY8C4xxx.FLM" start="0x0" size="0x20000" RAMstart="0x20000300" RAMsize="0x0D00" default ="1" style="Keil"/>
+      </device>
+    </family>
+    <family Dfamily="PMG1-S2" Dvendor="Cypress:19">
+      <processor Pname="Cortex-M0" Dcore="Cortex-M0" DcoreVersion="r0p0" Dfpu="NO_FPU" Dmpu="NO_MPU" Dendian="Little-endian" Dclock="48000000" />
+      <description>
+        PMG1-S2 devices.
+      </description>
+      <book name="README.txt" title="Cypress PMG1 DFP user guide"/>
+      <sequences>
+        <sequence name="ResetCatchSet">
+          <!--Vector catch is not working on this family -->
+        </sequence>
+        <sequence name="ResetSystem">
+          <block info="Halt CPU and determine application entry point">
+            __var SCS_Addr   = 0xE000E000;
+            __var AIRCR_Addr = SCS_Addr + 0xD0C;
+            __var DHCSR_Addr = SCS_Addr + 0xDF0;
+            __var reset_addr = 0;
+            __var reset_vector_addr = 0;
+            __var app_is_valid = 0;
+
+            // Enable debug, and halt the CPU
+            Write32(DHCSR_Addr, 0xA05F0003);
+            
+            // Get address at reset vector
+            reset_vector_addr = Read32(0x00000004);
+            app_is_valid = reset_vector_addr &lt;= 0x40000;
+          </block>
+          <control if="app_is_valid">
+            <block info="Set BP at app entry and issue a reset">
+              // Enable Breakpoint unit
+              Write32(0xE0002000, 0x00000003);
+            
+              // Map the address bits to the breakpoint compare register
+              // bit map, set the enable breakpoint bit, and the match bits
+              reset_addr = (reset_vector_addr &amp; 0x1FFFFFFC) | 0xC0000001;
+              Write32(0xE0002008, reset_addr);
+              
+              // Issue software reset
+              __errorcontrol = 1;
+              Write32(AIRCR_Addr, 0x05FA0004);
+              __errorcontrol = 0;
+            </block>
+            <control while="(Read32(DHCSR_Addr) &amp; 0x02000000)" timeout="5000"/>
+          </control>
+        </sequence>
+      </sequences>
+      <device Dname="CYPM1211-40LQXIT">
+        <compile   define="CYPM1211_40LQXIT" />
+        <debug     Pname="Cortex-M0"  svd="SVD/pmg1s2.svd"/>
+        <memory    name="IRAM1"       access="rwx" start="0x20000000" size="0x2000" default="1"/>
+        <memory    name="IROM1"       access="rx"  start="0x00000000" size="0x20000" default="1" startup="1"/>
+        <algorithm name="Flash/CY8C4xxx.FLM" start="0x0" size="0x20000" RAMstart="0x20000300" RAMsize="0x0D00" default ="1" style="Keil"/>
+      </device>
+      <device Dname="CYPM1211-42FNXIT">
+        <compile   define="CYPM1211_42FNXIT" />
+        <debug     Pname="Cortex-M0"  svd="SVD/pmg1s2.svd"/>
+        <memory    name="IRAM1"       access="rwx" start="0x20000000" size="0x2000" default="1"/>
+        <memory    name="IROM1"       access="rx"  start="0x00000000" size="0x20000" default="1" startup="1"/>
+        <algorithm name="Flash/CY8C4xxx.FLM" start="0x0" size="0x20000" RAMstart="0x20000300" RAMsize="0x0D00" default ="1" style="Keil"/>
+      </device>
+    </family>
+    <family Dfamily="PMG1-S3" Dvendor="Cypress:19">
+      <processor Pname="Cortex-M0p" Dcore="Cortex-M0+" DcoreVersion="r0p1" Dfpu="NO_FPU" Dmpu="MPU" Dendian="Little-endian" Dclock="48000000" />
+      <description>
+        PMG1-S3 devices.
+      </description>
+      <book name="README.txt" title="Cypress PMG1 DFP user guide"/>
+      <sequences>
+        <sequence name="ResetCatchSet">
+          <!--Vector catch is not working on this family -->
+        </sequence>
+        <sequence name="ResetSystem">
+          <block info="Halt CPU and determine application entry point">
+            __var SCS_Addr   = 0xE000E000;
+            __var AIRCR_Addr = SCS_Addr + 0xD0C;
+            __var DHCSR_Addr = SCS_Addr + 0xDF0;
+            __var reset_addr = 0;
+            __var reset_vector_addr = 0;
+            __var app_is_valid = 0;
+
+            // Enable debug, and halt the CPU
+            Write32(DHCSR_Addr, 0xA05F0003);
+            
+            // Get address at reset vector
+            reset_vector_addr = Read32(0x00000004);
+            app_is_valid = reset_vector_addr &lt;= 0x40000;
+          </block>
+          <control if="app_is_valid">
+            <block info="Set BP at app entry and issue a reset">
+              // Enable Breakpoint unit
+              Write32(0xE0002000, 0x00000003);
+            
+              // Map the address bits to the breakpoint compare register
+              // bit map, set the enable breakpoint bit, and the match bits
+              reset_addr = (reset_vector_addr &amp; 0x1FFFFFFC) | 0xC0000001;
+              Write32(0xE0002008, reset_addr);
+              
+              // Issue software reset
+              __errorcontrol = 1;
+              Write32(AIRCR_Addr, 0x05FA0004);
+              __errorcontrol = 0;
+            </block>
+            <control while="(Read32(DHCSR_Addr) &amp; 0x02000000)" timeout="5000"/>
+          </control>
+        </sequence>
+      </sequences>
+      <device Dname="CYPM1322-97BZXIT">
+        <compile   define="CYPM1322_97BZXIT" />
+        <debug     Pname="Cortex-M0p" svd="SVD/pmg1s3.svd"/>
+        <memory    name="IRAM1"       access="rwx" start="0x20000000" size="0x8000" default="1"/>
+        <memory    name="IROM1"       access="rx"  start="0x00000000" size="0x40000" default="1" startup="1"/>
+        <algorithm name="Flash/CY8C4xxx.FLM" start="0x0" size="0x40000" RAMstart="0x20000300" RAMsize="0x0D00" default ="1" style="Keil"/>
+      </device>
+      <device Dname="CYPM1311-48LQXI">
+        <compile   define="CYPM1311_48LQXI" />
+        <debug     Pname="Cortex-M0p" svd="SVD/pmg1s3.svd"/>
+        <memory    name="IRAM1"       access="rwx" start="0x20000000" size="0x8000" default="1"/>
+        <memory    name="IROM1"       access="rx"  start="0x00000000" size="0x40000" default="1" startup="1"/>
+        <algorithm name="Flash/CY8C4xxx.FLM" start="0x0" size="0x40000" RAMstart="0x20000300" RAMsize="0x0D00" default ="1" style="Keil"/>
+      </device>
+      <device Dname="CYPD8225-97BZXIT">
+        <compile   define="CYPD8225_97BZXIT" />
+        <debug     Pname="Cortex-M0p" svd="SVD/pmg1s3.svd"/>
+        <memory    name="IRAM1"       access="rwx" start="0x20000000" size="0x8000" default="1"/>
+        <memory    name="IROM1"       access="rx"  start="0x00000000" size="0x40000" default="1" startup="1"/>
+        <algorithm name="Flash/CY8C4xxx.FLM" start="0x0" size="0x40000" RAMstart="0x20000300" RAMsize="0x0D00" default ="1" style="Keil"/>
+      </device>
+    </family>
+  </devices>
+
+  <conditions>
+    <condition id="PMG1-S0">
+      <description>PMG1-S0 devices</description>
+      <accept Dvendor="Cypress:19" Dname="CYPM1011-24LQXI"/>
+    </condition>
+    <condition id="PMG1-S1">
+      <description>PMG1-S1 devices</description>
+      <accept Dvendor="Cypress:19" Dname="CYPM1111-40LQXIT"/>
+    </condition>
+    <condition id="PMG1-S2">
+      <description>PMG1-S2 devices</description>
+      <accept Dvendor="Cypress:19" Dname="CYPM1211-40LQXIT"/>
+      <accept Dvendor="Cypress:19" Dname="CYPM1211-42FNXIT"/>
+    </condition>
+    <condition id="PMG1-S3">
+      <description>PMG1-S3 devices</description>
+      <accept Dvendor="Cypress:19" Dname="CYPM1322-97BZXIT"/>
+      <accept Dvendor="Cypress:19" Dname="CYPM1311-48LQXI"/>
+      <accept Dvendor="Cypress:19" Dname="CYPD8225-97BZXIT"/>
+    </condition>
+    <condition id="PMG1">
+      <description>PMG1 devices</description>
+      <accept condition="PMG1-S0"/>
+      <accept condition="PMG1-S1"/>
+      <accept condition="PMG1-S2"/>
+      <accept condition="PMG1-S3"/>
+      <require Cclass="Device" Cgroup="Startup" />
+    </condition>
+  </conditions>
+
+  <components>
+    <component Cclass="Device" Cgroup="Startup" Cversion="1.0.0" condition="PMG1">
+      <!-- This is a dummy startup implementation that emits a compiler error once
+           this software component is enabled in the CMSIS RTE project configuration.
+           It exists to silence PackChk WARNING M350: No 'Startup' component found.
+           Refer to README.txt in the pack root directory for the guidance on the
+           intended use of this CSMIS pack. -->
+      <description>Dummy startup component, do not use</description>
+      <files>
+        <file category="doc" name="README.txt"/>
+        <file category="source" name="Device/Source/startup_error.c" version="1.0.0"/>
+      </files>
+    </component>
+  </components>
+</package>
