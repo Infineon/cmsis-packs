@@ -1,4 +1,4 @@
-<?xml version="1.0" encoding="UTF-8"?>
+<?xml version="1.0" encoding="utf-8"?>
 <package schemaVersion="1.6.0" xmlns:xs="http://www.w3.org/2001/XMLSchema-instance" xs:noNamespaceSchemaLocation="PACK.xsd">
   <vendor>Infineon</vendor>
   <name>AIROC_DFP</name>
@@ -7,82 +7,32 @@
   <supportContact>https://www.infineon.com/support</supportContact>
   <license>APACHE_LICENSE.txt</license>
   <releases>
+    <release version="1.1.0" date="2023-12-18">
+      Added ITM tracing support for CYW20829 devices
+      Added Secure Debug support for CYW20829 devices
+      Updated CAT1B CMSIS Flash Loaders to v1.1.0.271: bugfixes, performance and stability improvements.
+    </release>
     <release version="1.0.0" date="2022-03-30">
       First Release version of AIROC Device Family Pack.
       Based on Infineon CYW208xx CMSIS Flash Loaders v1.0.0.206.
     </release>
   </releases>
-
   <keywords>
     <keyword>Infineon</keyword>
     <keyword>AIROC</keyword>
     <keyword>DFP</keyword>
   </keywords>
-
   <devices>
+    <!-- CYW208xx -->
     <family Dfamily="CYW208xx" Dvendor="Infineon:7">
-      <processor Pname="Cortex-M33" Dcore="Cortex-M33" DcoreVersion="r0p1" Dfpu="SP_FPU" Dmpu="MPU" Dendian="Little-endian" Dclock="96000000" />
-      <description>
-        CYW208xx: Cortex-M33 MCU series with integrated analog and digital peripherals.
-      </description>
-      <book name="README.txt" title="Infineon AIROC DFP user guide"/>
-      <book name="known_issues.txt" title="Infineon AIROC DFP known issues"/>
-      <debug Pname="Cortex-M33"  __ap="1" defaultResetSequence="ResetSystem"/>
+      <processor Pname="Cortex-M33" Dcore="Cortex-M33" DcoreVersion="r0p1" Dfpu="NO_FPU" Dmpu="MPU" Dendian="Little-endian" Dclock="96000000" />
+      <description>CYW208xx: Cortex-M33 MCU series with integrated analog and digital peripherals.</description>
+      <book name="README.txt" title="Infineon AIROC DFP user guide" />
+      <book name="known_issues.txt" title="Infineon AIROC DFP known issues" />
+      <debug Pname="Cortex-M33" __ap="1" defaultResetSequence="ResetSystem" svd="SVD/cyw20829.svd" />
+      <memory name="IROM1" access="rx" start="0x60000000" size="0x8000000" default="1" startup="1" />
+      <algorithm Pname="Cortex-M33" name="Flash/CYW208xx_SMIF.FLM" start="0x60000000" size="0x08000000" RAMstart="0x20008100" RAMsize="0xFFF0" default="1" style="Keil" />
       <sequences>
-        <sequence name="DebugPortStart">
-          <block info="Read DP CTRL/STAT">
-            __var SW_DP_ABORT  = 0x0;
-            __var DP_CTRL_STAT = 0x4;
-            __var DP_SELECT    = 0x8;
-            __var powered_down = 0;
-            // Switch to DP Register Bank 0. Explicitly set APSEL to current AP selection
-            WriteDP(DP_SELECT, __ap &lt;&lt; 24);
-            // Read DP CTRL/STAT Register and check if CSYSPWRUPACK and CDBGPWRUPACK bits are set
-            powered_down = ((ReadDP(DP_CTRL_STAT) &amp; 0xA0000000) != 0xA0000000);
-          </block>
-          <control if="powered_down">
-            <block info="Power Up System &amp; Debug">
-              // Request Debug/System Power-Up
-              // Ignore error here: even there is a polling in the next block, CMSIS-DAP transports reads DP->RDBUFF register
-              // right after write to DP->CTRL_STAT. This will fail for some cases - for example if device is waking from DeepSleep.
-              __errorcontrol = 1;
-              WriteDP(DP_CTRL_STAT, 0x50000000);
-              __errorcontrol = 0;
-            </block>
-            <!-- Wait for Power-Up Request to be acknowledged -->
-            <control while="(ReadDP(DP_CTRL_STAT) &amp; 0xA0000000) != 0xA0000000" timeout="1000000" info="Wait for power acknowledged"/>
-            <!-- CDBGRSTREQ on CYW20829 behaves like Power-On Reset. Not desired when starting the Debug Port
-            <block info="Debug Reset">
-              __errorcontrol = 1;
-              // Request Debug Reset
-              WriteDP(DP_CTRL_STAT, 0x54000000);
-              // CDBGRSTREQ is equivalent to Power-On Reset and fully reboots the device.
-              // Depending on the user application the reboot can take up to 1200ms.
-              DAP_Delay(1200000);
-              __errorcontrol = 0;
-            </block>
-            -->
-            <!-- Wait for Debug Reset to be acknowledged, don't issue error on timeout to deal with improperly connected Debug Reset -->
-            <!-- <control while="(ReadDP(DP_CTRL_STAT) &amp; 0xA8000000) != 0xA8000000" timeout="300000" info="Wait for Debug Reset Acknowledge"/> -->
-            <!-- JTAG Specific Part of sequence -->
-            <control if="(__protocol &amp; 0xFFFF) == 1">
-              <block info="JTAG: Clear Sticky Bits">
-                // Init AP Transfer Mode, Transaction Counter, and Lane Mask (Normal Transfer Mode, Include all Byte Lanes)
-                // Additionally clear STICKYORUN, STICKYCMP, and STICKYERR bits by writing '1'
-                WriteDP(DP_CTRL_STAT, 0x50000F32);
-              </block>
-            </control>
-            <!-- SWD Specific Part of sequence -->
-            <control if="(__protocol &amp; 0xFFFF) == 2">
-              <block info="SWD: Init SWD &amp; Clear Sticky Bits">
-                // Init AP Transfer Mode, Transaction Counter, and Lane Mask (Normal Transfer Mode, Include all Byte Lanes)
-                WriteDP(DP_CTRL_STAT, 0x50000F00);
-                // Clear WDATAERR, STICKYORUN, STICKYCMP, and STICKYERR bits of CTRL/STAT Register by write to ABORT register
-                WriteDP(SW_DP_ABORT, 0x0000001E);
-              </block>
-            </control>
-          </control>
-        </sequence>
         <!-- DAP handshake -->
         <sequence name="DAP_Handshake">
           <block>
@@ -110,15 +60,15 @@
                 DAP_JTAG_Sequence(1, 0, 0x01);
                 // Get IDCODE to make shure that JTAG-DP is available
                 DAP_JTAG_Sequence(4, 0, 0x00);                          // 4*Run-Test/Idle
-                DAP_JTAG_Sequence(2, 1, 0x00);                          // -> Select-DR -> Select-IR
-                DAP_JTAG_Sequence(2, 0, 0x00);                          // -> Capture-IR -> Shift-IR
+                DAP_JTAG_Sequence(2, 1, 0x00);                          // ~ Select-DR ~ Select-IR
+                DAP_JTAG_Sequence(2, 0, 0x00);                          // ~ Capture-IR ~ Shift-IR
                 DAP_JTAG_Sequence(7, 0, 0xFE);                          // Shift-IR (IDCODE BYPASS)
-                DAP_JTAG_Sequence(2, 1, 0x01);                          // -> Exit1-IR (IDCODE BYPASS) -> Update-IR
+                DAP_JTAG_Sequence(2, 1, 0x01);                          // ~ Exit1-IR (IDCODE BYPASS) ~ Update-IR
                 DAP_JTAG_Sequence(4, 0, 0x00);                          // Make sure that we go through Idle state in TAP controller
                 DAP_JTAG_Sequence(1, 1, 0x00);                          // Select-DR
-                DAP_JTAG_Sequence(2, 0, 0x00);                          // -> Capture-DR -> Shift-DR
+                DAP_JTAG_Sequence(2, 0, 0x00);                          // ~ Capture-DR ~ Shift-DR
                 DPIDR = DAP_JTAG_Sequence(33, 0, 0x00000000);           // Shift 33-bits data
-                DAP_JTAG_Sequence(2, 1, 0x00);                          // -> Exit2-DR -> Update-DR
+                DAP_JTAG_Sequence(2, 1, 0x00);                          // ~ Exit2-DR ~ Update-DR
                 DAP_JTAG_Sequence(4, 0, 0x00);                          // Make sure that we go through Idle state in TAP controller
               </block>
             </control>
@@ -143,7 +93,7 @@
                   DAP_SWJ_Sequence(3,  0x00);                // At least 2 idle cycles (SWDIO/TMS Low)
                 </block>
               </control>
-              <!-- Note. The following block must be "atoming" to avoid using the cached result in case of an error occured. -->
+              <!-- Note. The following block must be "atomic" to avoid using the cached result in case of an error occurred. -->
               <block atomic="true">
                 // Read DPIDR to enable SWD interface (SW-DPv1 and SW-DPv2)
                 __errorcontrol = 1;
@@ -151,6 +101,195 @@
                 __errorcontrol = 0;
               </block>
             </control>
+          </control>
+        </sequence>
+        <!-- Acquires the target in WFA mode using request code for debug certificates -->
+        <sequence name="AcquireInWFAMode2">
+          <block>
+            __var SRSS_TST_DEBUG_CTL_Addr     = 0x40200404;
+            __var SRSS_TST_DEBUG_CTL_WFA_MASK = 0x80000000;
+            __var WFA_REQUEST_DEBUG_CERT      = 2;
+            __var SRSS_RES_SOFT_CTL_Addr      = 0x40200410;
+            __var SRSS_RES_SOFT_CTL_TRIG_SOFT = 0x00000001;
+            __ap = 0;
+            WriteAP(0x0, 0xAB000002);
+            __var DebugStatus = Read32(SRSS_TST_DEBUG_CTL_Addr);
+          </block>
+          <control if="(DebugStatus &amp; SRSS_TST_DEBUG_CTL_WFA_MASK) != 0">
+            <block>
+              Message(0, "** Pre-reset before Request WFA DEBUG_CERT ...");
+              Write32(SRSS_TST_DEBUG_CTL_Addr, SRSS_TST_DEBUG_CTL_WFA_MASK);
+              __errorcontrol = 1;
+              Write32(SRSS_RES_SOFT_CTL_Addr, SRSS_RES_SOFT_CTL_TRIG_SOFT);
+              __errorcontrol = 0;
+              DAP_Delay(300000); // Give a time for processing the soft reset request
+            </block>
+            <control if="(__protocol &amp; 0x0000FFFF) == 1">
+              <block>
+                DAP_Delay(600000); // Give an additional time for JATG pins to be re-enabled by boot code.
+              </block>
+            </control>
+            <block>
+              sequence("DAP_Handshake");
+              __var AP_CSW;
+              AP_CSW = ReadAP(0x0);
+            </block>
+            <!-- Check against CSW.DeviceEn -->
+            <control while="(AP_CSW &amp; 0x00000040) == 0" timeout="500000">
+              <block>
+                AP_CSW = ReadAP(0x0);
+              </block>
+            </control>
+          </control>
+          <block>
+            Message(0, "** Request WFA DEBUG_CERT ...");
+            WriteAP(0x0, 0xAB000002);
+            Write32(SRSS_TST_DEBUG_CTL_Addr, WFA_REQUEST_DEBUG_CERT);
+            __errorcontrol = 1;
+            Write32(SRSS_RES_SOFT_CTL_Addr, SRSS_RES_SOFT_CTL_TRIG_SOFT);
+            __errorcontrol = 0;
+            DAP_Delay(200000); // Wait for bootloader CYW20829 allows access to device
+          </block>
+          <control if="(__protocol &amp; 0x0000FFFF) == 1">
+            <block>
+              DAP_Delay(600000); // Give an additional time for JATG pins to be re-enabled by boot code.
+            </block>
+          </control>
+          <block>
+            sequence("DAP_Handshake");
+            WriteAP(0x0, 0xAB000002);
+            DebugStatus = Read32(SRSS_TST_DEBUG_CTL_Addr);
+          </block>
+          <!-- Wait for WFA -->
+          <control while="(DebugStatus &amp; SRSS_TST_DEBUG_CTL_WFA_MASK) == 0" timeout="500000">
+            <block>
+              DebugStatus = Read32(SRSS_TST_DEBUG_CTL_Addr);
+            </block>
+          </control>
+          <control if="(DebugStatus &amp; SRSS_TST_DEBUG_CTL_WFA_MASK) == 0">
+            <block>
+              Message(2, "** Acquisition in WFA mode FAILED!");
+            </block>
+          </control>
+        </sequence>
+        <sequence name="DebugPortStart">
+          <block info="Read DP CTRL/STAT">
+            __var DP_ABORT  = 0x0;
+            __var DP_CTRL_STAT = 0x4;
+            __var DP_SELECT    = 0x8;
+            __var powered_down = 0;
+            // Read DP CTRL/STAT Register and check if CSYSPWRUPACK and CDBGPWRUPACK bits are set
+            powered_down = ((ReadDP(DP_CTRL_STAT) &amp; 0xA0000000) != 0xA0000000);
+          </block>
+          <control if="powered_down">
+            <block info="Power Up System &amp; Debug">
+              // Request Debug/System Power-Up
+              // Ignore error here: even there is a polling in the next block, CMSIS-DAP transports reads DP.RDBUFF register
+              // right after write to DP.CTRL_STAT. This will fail for some cases - for example if device is waking from DeepSleep.
+              __errorcontrol = 1;
+              WriteDP(DP_CTRL_STAT, 0x50000000);
+              __errorcontrol = 0;
+            </block>
+            <!-- Wait for Power-Up Request to be acknowledged -->
+            <control while="(ReadDP(DP_CTRL_STAT) &amp; 0xA0000000) != 0xA0000000" timeout="1000000" info="Wait for power acknowledged" />
+            <!-- CDBGRSTREQ on CYW20829 behaves like Power-On Reset. Not desired when starting the Debug Port
+            <block info="Debug Reset">
+              __errorcontrol = 1;
+              // Request Debug Reset
+              WriteDP(DP_CTRL_STAT, 0x54000000);
+              // CDBGRSTREQ is equivalent to Power-On Reset and fully reboots the device.
+              // Depending on the user application the reboot can take up to 1200ms.
+              DAP_Delay(1200000);
+              __errorcontrol = 0;
+            </block>
+            -->
+            <!-- Wait for Debug Reset to be acknowledged, don't issue error on timeout to deal with improperly connected Debug Reset -->
+            <!-- <control while="(ReadDP(DP_CTRL_STAT) &amp; 0xA8000000) != 0xA8000000" timeout="300000" info="Wait for Debug Reset Acknowledge"/> -->
+          </control>
+          <!-- JTAG Specific Part of sequence -->
+          <control if="(__protocol &amp; 0xFFFF) == 1">
+            <block info="JTAG: Clear Sticky Bits">
+              // Init AP Transfer Mode, Transaction Counter, and Lane Mask (Normal Transfer Mode, Include all Byte Lanes)
+              // Additionally clear STICKYORUN, STICKYCMP, and STICKYERR bits by writing '1'
+              WriteDP(DP_CTRL_STAT, 0x50000F32);
+            </block>
+          </control>
+          <!-- SWD Specific Part of sequence -->
+          <control if="(__protocol &amp; 0xFFFF) == 2">
+            <block info="SWD: Init SWD &amp; Clear Sticky Bits">
+              // Init AP Transfer Mode, Transaction Counter, and Lane Mask (Normal Transfer Mode, Include all Byte Lanes)
+              WriteDP(DP_CTRL_STAT, 0x50000F00);
+              // Clear WDATAERR, STICKYORUN, STICKYCMP, and STICKYERR bits of CTRL/STAT Register by write to ABORT register
+              WriteDP(DP_ABORT, 0x0000001E);
+            </block>
+          </control>
+          <block>
+            // Switch to DP Register Bank 0. Explicitly set APSEL to current AP selection
+            WriteDP(DP_SELECT, __ap &lt;&lt; 24);
+            __var AP_CSW;  // AP CSW value
+            AP_CSW = ReadAP(0x0);
+          </block>
+          <!-- Check against CSW.DeviceEn -->
+          <control if="(AP_CSW &amp; 0x00000040) == 0">
+            <block>
+              __var fileExists = 0;
+              __var DEBUG_CERTIFICATE_ADDR = 0x2000FC00;
+              Message(0, "** CM33 AP is closed, CSW: 0x%08X", AP_CSW);
+              Message(0, "** DEBUG_CERTIFICATE_PATH = %s", "./packets/debug_cert.bin");
+              Message(0, "** DEBUG_CERTIFICATE_ADDR = 0x%08X", DEBUG_CERTIFICATE_ADDR);
+              fileExists = FilePathExists("$P/packets/debug_cert.bin", 0);
+            </block>
+            <control if="fileExists == 0">
+              <block>
+                __var certLength = BufferStreamIn(0, 0, 0xFFFFFFFFFFFFFFFF , "$P/packets/debug_cert.bin", 0, 0);
+                Message(0, "** The Debug Certificate File loaded, %u byte(s).", certLength);
+                sequence("AcquireInWFAMode2");
+                __ap = 0;
+                WriteAP(0x0, 0xAB000002);
+                BufferWrite(0, 0, DEBUG_CERTIFICATE_ADDR, certLength, (32|1));
+                __var SRSS_TST_DEBUG_CTL_Addr     = 0x40200404;
+                Write32(SRSS_TST_DEBUG_CTL_Addr, 0);
+                DAP_Delay(600000); // Give a time for processing the recently uploaded certificate.
+              </block>
+              <control if="(__protocol &amp; 0x0000FFFF) == 1">
+                <block>
+                  sequence("DAP_Handshake");
+                </block>
+              </control>
+              <block>
+                __ap = 1;
+                AP_CSW = ReadAP(0x0);
+              </block>
+              <!-- Check against CSW.DeviceEn -->
+              <control while="(AP_CSW &amp; 0x00000040) == 0" timeout="500000">
+                <block>
+                    AP_CSW = ReadAP(0x0);
+                </block>
+              </control>
+              <control if="(AP_CSW &amp; 0x00000040) == 0">
+                <block>
+                    // Switch to SYS AP and get boot status
+                    __ap = 0;
+                    __var RAM_BOOT_STATUS_ADDR = 0x20000000;
+                    WriteAP(0x0, 0xAB000002);
+                    __var BootStatus = Read32(RAM_BOOT_STATUS_ADDR);
+                    Message(2, "** CM33 AP still closed, Boot Status: 0x%08X", BootStatus);
+                  </block>
+              </control>
+            </control>
+            <control if="fileExists != 0">
+              <block>
+                Message(2, "** The File packets/debug_cert.bin does Exists!");
+              </block>
+            </control>
+          </control>
+          <control if="(AP_CSW &amp; 0x00000040) != 0">
+            <block>
+              Message(0, "** CM33 AP is open, CSW: 0x%08X", AP_CSW);
+              __var RAM_BOOT_STATUS_ADDR = 0x20000000;
+              __var BootStatus = Read32(RAM_BOOT_STATUS_ADDR);
+              Message(0, "** Boot Status: 0x%08X", BootStatus);
+            </block>
           </control>
         </sequence>
         <!-- HW Reset causes a reboot of the device which also resets debug.
@@ -168,10 +307,10 @@
             canReadPins = (DAP_SWJ_Pins(0x00, nReset, 0) != 0xFFFFFFFF);
           </block>
           <!-- Keep reset active for 50 ms -->
-          <control while="1" timeout="50000"/>
+          <control while="1" timeout="50000" />
           <control if="canReadPins">
             <!-- Assert nRESET line and wait max. 1s for recovery -->
-            <control while="(DAP_SWJ_Pins(nReset, nReset, 0) &amp; nReset) == 0" timeout="1000000"/>
+            <control while="(DAP_SWJ_Pins(nReset, nReset, 0) &amp; nReset) == 0" timeout="1000000" />
           </control>
           <control if="!canReadPins">
             <block>
@@ -179,10 +318,10 @@
               DAP_SWJ_Pins(nReset, nReset, 0);
             </block>
             <!-- Wait 100ms for recovery if nRESET not readable -->
-            <control while="1" timeout="100000"/>
+            <control while="1" timeout="100000" />
           </control>
           <block>
-            // Poll DP until bootloader CYW20829 allows access to device (can be up to 1200ms)
+            DAP_Delay(600000); // Wait for bootloader CYW20829 allows access to device
             sequence("DAP_Handshake");
             sequence("DebugPortStart");
             __var DHCSR_Addr   = 0xE000EDF0;
@@ -216,10 +355,6 @@
               Write32(DHCSR_Addr, 0xA05F0001);
             </block>
           </control>
-          <block>
-            // Init AP CSW register
-            WriteAP(0x00, 0x03000052);
-          </block>
         </sequence>
         <sequence name="ResetSystem">
           <block>
@@ -231,53 +366,128 @@
             __errorcontrol = 1;
             Write32(AIRCR_Addr, 0x05FA0004);
             __errorcontrol = 0;
+            DAP_Delay(600000); // Wait for bootloader CYW20829 allows access to device
             sequence("DAP_Handshake");
+            sequence("DebugPortStart");
           </block>
           <!-- Reset Recovery: Wait for DHCSR.S_RESET_ST bit to clear on read -->
-          <control while="(Read32(DHCSR_Addr) &amp; 0x02000000)" timeout="500000"/>
+          <control while="(Read32(DHCSR_Addr) &amp; 0x02000000)" timeout="500000" />
+        </sequence>
+        <sequence name="DebugCoreStart">
+          <block>
+            // System Control Space (SCS) offset as defined in Armv6-M/Armv7-M.
+            __var SCS_Addr   = 0xE000E000;
+            __var DHCSR_Addr = SCS_Addr + 0xDF0;
+            // Enable Core Debug via DHCSR
+            Write32(DHCSR_Addr, 0xA05F0001);
+          </block>
+          <!-- Enable clock to TPIU block for proper TPIU detection if Serial Wire Output (SWO) enabled and it is Debug session -->
+          <control if="((__connection &amp; 0x00000001) != 0) &amp;&amp; ((__traceout &amp; 0x00000001) != 0)">
+            <block>
+              Sequence("SetupTraceClock");
+            </block>
+          </control>
+        </sequence>
+        <sequence name="SetupTraceClock">
+          <block>
+            __var TRACE_div_sel                 = 0;                        // Clock divider index to use for cpuss.clock_trace_in peripheral clock. Divider type is CY_SYSCLK_DIV_24_5_BIT
+            __var TRACE_div_int                 = 0;                        // Integer division by (1+INT24_DIV)
+            __var TRACE_div_frac                = 0;                        // Fractional division by (FRAC5_DIV/32)
+            __var PERI_PCLK_GROUP0             = 0x40040000;                // MMIO-MMIO0-PERI_PCLK-PCLK_GROUP[0]
+            __var PERI_PCLK_GROUP0_DIV_CMD     = PERI_PCLK_GROUP0 + 0x0000; // MMIO-MMIO0-PERI_PCLK-PCLK_GROUP[0]-DIV_CMD
+            __var PERI_PCLK_GROUP0_CLOCK_CTL   = PERI_PCLK_GROUP0 + 0x0C00; // MMIO-MMIO0-PERI_PCLK-PCLK_GROUP[0]-CLOCK_CTL
+            __var PERI_PCLK_GROUP0_DIV_24_5_CTL= PERI_PCLK_GROUP0 + 0x1C00; // MMIO-MMIO0-PERI_PCLK-PCLK_GROUP[0]-DIV_24_5_CTL
+            Message(0, "Setup TPIU clock");
+            // DISABLE 24.5 DIV in PERI_DIV_CMD:
+            Write32(PERI_PCLK_GROUP0_DIV_CMD, 0x40000300 | TRACE_div_sel);
+            // Use selected divider (24.5) for cpuss.clock_trace_in
+            Write32(PERI_PCLK_GROUP0_CLOCK_CTL, 0x00000300 | TRACE_div_sel);
+            // Set 24.5 DIV = ClockDivVal
+            Write32(PERI_PCLK_GROUP0_DIV_24_5_CTL + (TRACE_div_sel * 4), ( TRACE_div_int &lt;&lt; 8) | (TRACE_div_frac &lt;&lt; 3));
+            // ENABLE 24.5 DIV
+            Write32(PERI_PCLK_GROUP0_DIV_CMD, 0x83FF0300 | TRACE_div_sel);
+          </block>
+        </sequence>
+        <sequence name="TraceStart">
+          <control if="(__traceout &amp; 0x00000001) != 0" info="Serial Wire Output (SWO) enabled">
+            <block>
+              // Configuring SWO pin (P1_0)
+              __var HSIOM_PRT1_PORT_SEL0 = 0x40400010; // MMIO-MMIO1-HSIOM-HSIOM_PRT[1]-PORT_SEL0
+              __var GPIO_PRT1_OUT        = 0x40410080; // MMIO-MMIO1-GPIO-GPIO_PRT[1]-OUT
+              __var GPIO_PRT1_CFG        = 0x404100C4; // MMIO-MMIO1-GPIO-GPIO_PRT[1]-CFG
+              Message(0, "Configuring SWO pin: P1[0]");
+              Write32(HSIOM_PRT1_PORT_SEL0, 0x1D1D1D1D); // 0x40400010 = 0x1D1D1D1D
+              Write32(GPIO_PRT1_OUT, 0x0000000C);        // 0x40410080 = 0x0000000C
+              Write32(GPIO_PRT1_CFG, 0x0000BAA6);        // 0x404100C4 = 0x0000BAA6
+              Sequence("SetupTraceClock");
+            </block>
+          </control>
         </sequence>
       </sequences>
-      <device Dname="CYW20829A0LKML">
-        <compile   define="CYW20829A0LKML" />
-        <debug     Pname="Cortex-M33" svd="SVD/cyw20829.svd"/>
-        <memory    name="IRAM1"       access="rwx" start="0x20000000" size="0x20000" default="1"/>
-        <memory    name="IROM1"       access="rx"  start="0x60000000" size="0x8000000" default="1" startup="1"/>
-
-        <algorithm Pname="Cortex-M33" name="Flash/CYW208xx_SMIF.FLM" start="0x60000000" size="0x08000000" RAMstart="0x20008100" RAMsize="0xFFF0" default ="1" style="Keil"/>
-      </device>
-      <device Dname="CYW20829A0KML">
-        <compile   define="CYW20829A0KML" />
-        <debug     Pname="Cortex-M33" svd="SVD/cyw20829.svd"/>
-        <memory    name="IRAM1"       access="rwx" start="0x20000000" size="0x20000" default="1"/>
-        <memory    name="IROM1"       access="rx"  start="0x60000000" size="0x8000000" default="1" startup="1"/>
-
-        <algorithm Pname="Cortex-M33" name="Flash/CYW208xx_SMIF.FLM" start="0x60000000" size="0x08000000" RAMstart="0x20008100" RAMsize="0xFFF0" default ="1" style="Keil"/>
-      </device>
-      <device Dname="CYW89829A0KML">
-        <compile   define="CYW89829A0KML" />
-        <debug     Pname="Cortex-M33" svd="SVD/cyw20829.svd"/>
-        <memory    name="IRAM1"       access="rwx" start="0x20000000" size="0x20000" default="1"/>
-        <memory    name="IROM1"       access="rx"  start="0x60000000" size="0x8000000" default="1" startup="1"/>
-
-        <algorithm Pname="Cortex-M33" name="Flash/CYW208xx_SMIF.FLM" start="0x60000000" size="0x08000000" RAMstart="0x20008100" RAMsize="0xFFF0" default ="1" style="Keil"/>
-      </device>
+      <!-- CYW20829A0, 128Kb SRAM -->
+      <subFamily DsubFamily="CYW20829A0">
+        <memory name="IRAM1" access="rwx" start="0x20000000" size="0x20000" default="1" />
+        <device Dname="CYW20829A0KML">
+          <compile define="CYW20829A0KML" />
+        </device>
+        <device Dname="CYW20829A0LKML">
+          <compile define="CYW20829A0LKML" />
+        </device>
+      </subFamily>
+      <!-- CYW20829A0, 256Kb SRAM -->
+      <subFamily DsubFamily="CYW20829">
+        <memory name="IRAM1" access="rwx" start="0x20000000" size="0x40000" default="1" />
+        <device Dname="CYW20829B0KML">
+          <compile define="CYW20829B0KML" />
+        </device>
+        <device Dname="CYW20829B0LKML">
+          <compile define="CYW20829B0LKML" />
+        </device>
+      </subFamily>
+      <!-- CYW89829A0, 128Kb SRAM -->
+      <subFamily DsubFamily="CYW89829A0">
+        <memory name="IRAM1" access="rwx" start="0x20000000" size="0x20000" default="1" />
+        <device Dname="CYW89829A0KML">
+          <compile define="CYW89829A0KML" />
+        </device>
+      </subFamily>
+      <!-- CYW89829A0, 256Kb SRAM -->
+      <subFamily DsubFamily="CYW89829">
+        <memory name="IRAM1" access="rwx" start="0x20000000" size="0x40000" default="1" />
+        <device Dname="CYW89829B01MKSBG">
+          <compile define="CYW89829B01MKSBG" />
+        </device>
+        <device Dname="CYW89829B0KML">
+          <compile define="CYW89829B0KML" />
+        </device>
+      </subFamily>
     </family>
   </devices>
-
   <conditions>
-    <condition id="CYW20829">
-      <description>CYW20829 devices</description>
-      <accept Dvendor="Infineon:7" Dname="CYW20829A0LKML"/>
-      <accept Dvendor="Infineon:7" Dname="CYW20829A0KML"/>
-      <accept Dvendor="Infineon:7" Dname="CYW89829A0KML"/>
-    </condition>
     <condition id="CYW208xx">
       <description>CYW208xx devices</description>
-      <accept condition="CYW20829"/>
+      <accept condition="CYW20829" />
       <require Cclass="Device" Cgroup="Startup" />
     </condition>
+    <condition id="CYW898xx">
+      <description>CYW898xx devices</description>
+      <accept condition="CYW89829" />
+      <require Cclass="Device" Cgroup="Startup" />
+    </condition>
+    <condition id="CYW20829">
+      <description>CYW20829 devices</description>
+      <accept Dvendor="Infineon:7" Dname="CYW20829A0KML" />
+      <accept Dvendor="Infineon:7" Dname="CYW20829A0LKML" />
+      <accept Dvendor="Infineon:7" Dname="CYW20829B0KML" />
+      <accept Dvendor="Infineon:7" Dname="CYW20829B0LKML" />
+    </condition>
+    <condition id="CYW89829">
+      <description>CYW89829 devices</description>
+      <accept Dvendor="Infineon:7" Dname="CYW89829A0KML" />
+      <accept Dvendor="Infineon:7" Dname="CYW89829B01MKSBG" />
+      <accept Dvendor="Infineon:7" Dname="CYW89829B0KML" />
+    </condition>
   </conditions>
-
   <components>
     <component Cclass="Device" Cgroup="Startup" Cversion="1.0.0" condition="CYW208xx">
       <!-- This is a dummy startup implementation that emits a compiler error once
@@ -287,8 +497,20 @@
            intended use of this CSMIS pack. -->
       <description>Dummy startup component, do not use</description>
       <files>
-        <file category="doc" name="README.txt"/>
-        <file category="source" name="Device/Source/startup_error.c" version="1.0.0"/>
+        <file category="doc" name="README.txt" />
+        <file category="source" name="Device/Source/startup_error.c" version="1.0.0" />
+      </files>
+    </component>
+    <component Cclass="Device" Cgroup="Startup" Cversion="1.0.0" condition="CYW898xx">
+      <!-- This is a dummy startup implementation that emits a compiler error once
+           this software component is enabled in the CMSIS RTE project configuration.
+           It exists to silence PackChk WARNING M350: No 'Startup' component found.
+           Refer to README.txt in the pack root directory for the guidance on the
+           intended use of this CSMIS pack. -->
+      <description>Dummy startup component, do not use</description>
+      <files>
+        <file category="doc" name="README.txt" />
+        <file category="source" name="Device/Source/startup_error.c" version="1.0.0" />
       </files>
     </component>
   </components>
