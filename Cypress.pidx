@@ -2,7 +2,7 @@
 <index schemaVersion="1.0.0" xs:noNamespaceSchemaLocation="PackIndex.xsd" xmlns:xs="http://www.w3.org/2001/XMLSchema-instance">
   <vendor>Cypress</vendor>
   <url>https://github.com/cypresssemiconductorco/cmsis-packs/raw/master/</url>
-  <timestamp>2023-12-22T12:03:49+00:00</timestamp>
+  <timestamp>2024-03-28T19:42:54+00:00</timestamp>
   <pindex>
     <pdsc url="https://github.com/cypresssemiconductorco/cmsis-packs/raw/master/PSoC6_DFP/" vendor="Cypress" name="PSoC6_DFP" version="1.2.0"/>
     <pdsc url="https://github.com/cypresssemiconductorco/cmsis-packs/raw/master/PSoC4_DFP/" vendor="Cypress" name="PSoC4_DFP" version="1.1.0"/>
@@ -10,7 +10,7 @@
     <pdsc url="https://github.com/Infineon/cmsis-packs/raw/master/AIROC_DFP/" vendor="Infineon" name="AIROC_DFP" version="1.1.0"/>
     <pdsc url="https://github.com/Infineon/cmsis-packs/raw/master/PSoC6_DFP/" vendor="Infineon" name="PSoC6_DFP" version="1.4.0"/>
     <pdsc url="https://github.com/Infineon/cmsis-packs/raw/master/CAT1C_DFP/" vendor="Infineon" name="CAT1C_DFP" version="1.0.0"/>
-    <pdsc url="https://github.com/Infineon/cmsis-packs/raw/master/CAT2_DFP/" vendor="Infineon" name="CAT2_DFP" version="1.2.0"/>
     <pdsc url="https://github.com/Infineon/cmsis-packs/raw/master/CAT2_DFP/" vendor="Infineon" name="CAT2_DFP" version="1.3.0"/>
+    <pdsc url="https://github.com/Infineon/cmsis-packs/raw/master/CAT1A_DFP/" vendor="Infineon" name="CAT1A_DFP" version="1.5.0"/>
   </pindex>
 </index>
