@@ -7,6 +7,9 @@
   <supportContact>https://www.infineon.com/support</supportContact>
   <license>APACHE_LICENSE.txt</license>
   <releases>
+    <release version="1.2.0" date="2024-09-09">
+      Added new devices in CYW89829 series.
+    </release>
     <release version="1.1.0" date="2023-12-18">
       Added ITM tracing support for CYW20829 devices
       Added Secure Debug support for CYW20829 devices
@@ -23,8 +26,8 @@
     <keyword>DFP</keyword>
   </keywords>
   <devices>
-    <!-- CYW208xx -->
-    <family Dfamily="CYW208xx" Dvendor="Infineon:7">
+    <!-- CYWxx829 -->
+    <family Dfamily="CYWxx829" Dvendor="Infineon:7">
       <processor Pname="Cortex-M33" Dcore="Cortex-M33" DcoreVersion="r0p1" Dfpu="NO_FPU" Dmpu="MPU" Dendian="Little-endian" Dclock="96000000" />
       <description>CYW208xx: Cortex-M33 MCU series with integrated analog and digital peripherals.</description>
       <book name="README.txt" title="Infineon AIROC DFP user guide" />
@@ -37,13 +40,33 @@
         <sequence name="DAP_Handshake">
           <block>
             __var isSWJ      = ((__protocol &amp; 0x00010000) != 0);
+            __var hasDormant = __protocol &amp; 0x00020000;
             __var protType   = __protocol &amp; 0x0000FFFF;
             __var DPIDR = 0;
+            __errorcontrol = 1;
           </block>
-          <control while="(DPIDR &amp; 0xFFF00FFF) != 0x6BA00477" timeout="1200000">
+          <control while="(DPIDR &amp; 0x00000FFF) != 0x00000477" timeout="1200000">
             <!-- JTAG Protocol -->
             <control if="protType == 1">
-              <control if="isSWJ">
+              <control if="hasDormant">
+                <block atomic="true">
+                  // Ensure current debug interface is in reset state
+                  DAP_SWJ_Sequence(51, 0x0007FFFFFFFFFFFF);
+                  // Select Dormant State (from SWD)
+                  DAP_SWJ_Sequence(16, 0xE3BC);
+                  // At least 8 cycles SWDIO/TMS HIGH
+                  DAP_SWJ_Sequence(8, 0xFF);
+                  // Alert Sequence Bits  0.. 63
+                  DAP_SWJ_Sequence(64, 0x86852D956209F392);
+                  // Alert Sequence Bits 64..127
+                  DAP_SWJ_Sequence(64, 0x19BC0EA2E3DDAFE9);
+                  // 4 cycles SWDIO/TMS LOW + 8-Bit JTAG Activation Code (0x0A)
+                  DAP_SWJ_Sequence(12, 0x0A0);
+                  // Ensure JTAG interface is reset
+                  DAP_SWJ_Sequence(6, 0x3F);
+                </block>
+              </control>
+              <control if="!hasDormant">
                 <block atomic="true">
                   // Ensure current debug interface is in reset state
                   DAP_SWJ_Sequence(51, 0x0007FFFFFFFFFFFF);
@@ -58,7 +81,7 @@
                 // JTAG "Soft" Reset
                 DAP_JTAG_Sequence(6, 1, 0x3F);
                 DAP_JTAG_Sequence(1, 0, 0x01);
-                // Get IDCODE to make shure that JTAG-DP is available
+                // Get IDCODE to make sure that JTAG-DP is available
                 DAP_JTAG_Sequence(4, 0, 0x00);                          // 4*Run-Test/Idle
                 DAP_JTAG_Sequence(2, 1, 0x00);                          // ~ Select-DR ~ Select-IR
                 DAP_JTAG_Sequence(2, 0, 0x00);                          // ~ Capture-IR ~ Shift-IR
@@ -75,32 +98,129 @@
             <!-- SWD Protocol -->
             <control if="protType == 2">
               <control if="isSWJ">
-                <block atomic="true">
-                  // Ensure current debug interface is in reset state
-                  DAP_SWJ_Sequence(51, 0x0007FFFFFFFFFFFF);
-                  // Execute SWJ-DP Switch Sequence JTAG to SWD (0xE79E)
-                  // Change if SWJ-DP uses deprecated switch code (0xEDB6)
-                  DAP_SWJ_Sequence(16, 0xE79E);
-                  // Enter SWD Line Reset State
-                  DAP_SWJ_Sequence(51, 0x0007FFFFFFFFFFFF);  // &gt; 50 cycles SWDIO/TMS High
-                  DAP_SWJ_Sequence(3,  0x00);                // At least 2 idle cycles (SWDIO/TMS Low)
-                </block>
+                <control if="hasDormant">
+                  <block atomic="true">
+                    // Ensure current debug interface is in reset state
+                    DAP_SWJ_Sequence(51, 0x0007FFFFFFFFFFFF);
+                    // Select Dormant State (from JTAG)
+                    DAP_SWJ_Sequence(31, 0x33BBBBBA);
+                    // At least 8 cycles SWDIO/TMS HIGH
+                    DAP_SWJ_Sequence(8, 0xFF);
+                    // Alert Sequence Bits  0.. 63
+                    DAP_SWJ_Sequence(64, 0x86852D956209F392);
+                    // Alert Sequence Bits 64..127
+                    DAP_SWJ_Sequence(64, 0x19BC0EA2E3DDAFE9);
+                    // 4 cycles SWDIO/TMS LOW + 8-Bit SWD Activation Code (0x1A)
+                    DAP_SWJ_Sequence(12, 0x1A0);
+                    // Enter SWD Line Reset State
+                    DAP_SWJ_Sequence(51, 0x0007FFFFFFFFFFFF);  // &gt; 50 cycles SWDIO/TMS High
+                    DAP_SWJ_Sequence(3,  0x00);                // At least 2 idle cycles (SWDIO/TMS Low)
+                  </block>
+                </control>
+                <control if="!hasDormant">
+                  <block atomic="true">
+                    // Ensure current debug interface is in reset state
+                    DAP_SWJ_Sequence(51, 0x0007FFFFFFFFFFFF);
+                    // Execute SWJ-DP Switch Sequence JTAG to SWD (0xE79E)
+                    // Change if SWJ-DP uses deprecated switch code (0xEDB6)
+                    DAP_SWJ_Sequence(16, 0xE79E);
+                    // Enter SWD Line Reset State
+                    DAP_SWJ_Sequence(51, 0x0007FFFFFFFFFFFF);  // &gt; 50 cycles SWDIO/TMS High
+                    DAP_SWJ_Sequence(3,  0x00);                // At least 2 idle cycles (SWDIO/TMS Low)
+                  </block>
+                </control>
               </control>
               <control if="!isSWJ">
-                <block atomic="true">
-                  // Enter SWD Line Reset State
-                  DAP_SWJ_Sequence(51, 0x0007FFFFFFFFFFFF);  // &gt; 50 cycles SWDIO/TMS High
-                  DAP_SWJ_Sequence(3,  0x00);                // At least 2 idle cycles (SWDIO/TMS Low)
-                </block>
+                <control if="hasDormant">
+                  <block atomic="true">
+                    // Ensure current debug interface is in reset state
+                    DAP_SWJ_Sequence(51, 0x0007FFFFFFFFFFFF);
+                    // At least 8 cycles SWDIO/TMS HIGH
+                    DAP_SWJ_Sequence(8, 0xFF);
+                    // Alert Sequence Bits  0.. 63
+                    DAP_SWJ_Sequence(64, 0x86852D956209F392);
+                    // Alert Sequence Bits 64..127
+                    DAP_SWJ_Sequence(64, 0x19BC0EA2E3DDAFE9);
+                    // 4 cycles SWDIO/TMS LOW + 8-Bit SWD Activation Code (0x1A)
+                    DAP_SWJ_Sequence(12, 0x1A0);
+                    // Enter SWD Line Reset State
+                    DAP_SWJ_Sequence(51, 0x0007FFFFFFFFFFFF);  // &gt; 50 cycles SWDIO/TMS High
+                    DAP_SWJ_Sequence(3,  0x00);                // At least 2 idle cycles (SWDIO/TMS Low)
+                  </block>
+                </control>
+                <control if="!hasDormant">
+                  <block atomic="true">
+                    // Enter SWD Line Reset State
+                    DAP_SWJ_Sequence(51, 0x0007FFFFFFFFFFFF);  // &gt; 50 cycles SWDIO/TMS High
+                    DAP_SWJ_Sequence(3,  0x00);                // At least 2 idle cycles (SWDIO/TMS Low)
+                  </block>
+                </control>
               </control>
-              <!-- Note. The following block must be "atomic" to avoid using the cached result in case of an error occurred. -->
-              <block atomic="true">
+              <block atomic="false">
                 // Read DPIDR to enable SWD interface (SW-DPv1 and SW-DPv2)
-                __errorcontrol = 1;
                 DPIDR = ReadDP(0x0);
-                __errorcontrol = 0;
               </block>
             </control>
+          </control>
+        </sequence>
+        <!-- DebugPortStart sequence prepares the target debug port for connection; is executed before acquiring access to the debug port.
+             May include for example an SWJ-DP switch sequence as defined in the Arm Debug Interface (ADI) Architecture Specification.
+             This sequence must not contain debug port/access port register and target memory accesses other than:
+             - Reading the DPIDR debug port register to release an SWD connection from its line reset.
+             - Writing the TARGETSEL debug port register (SWD protocol v2).
+        -->
+        <sequence name="DebugPortStart">
+          <block info="Read DP CTRL/STAT">
+            __var DP_ABORT  = 0x0;
+            __var DP_CTRL_STAT = 0x4;
+            __var DP_SELECT    = 0x8;
+            __var powered_down = 0;
+            // Switch to DP Register Bank 0
+            WriteDP(DP_SELECT, 0x00000000);
+            // Read DP CTRL/STAT Register and check if CSYSPWRUPACK and CDBGPWRUPACK bits are set
+            powered_down = ((ReadDP(DP_CTRL_STAT) &amp; 0xA0000000) != 0xA0000000);
+          </block>
+          <control if="powered_down">
+            <block info="Power Up System &amp; Debug">
+              // Request Debug/System Power-Up
+              // Ignore error here: even there is a polling in the next block, CMSIS-DAP transports reads DP.RDBUFF register
+              // right after write to DP.CTRL_STAT. This will fail for some cases - for example if device is waking from DeepSleep.
+              __errorcontrol = 1;
+              WriteDP(DP_CTRL_STAT, 0x50000000);
+              __errorcontrol = 0;
+            </block>
+            <!-- Wait for Power-Up Request to be acknowledged -->
+            <control while="(ReadDP(DP_CTRL_STAT) &amp; 0xA0000000) != 0xA0000000" timeout="1000000" info="Wait for power acknowledged" />
+            <!-- CDBGRSTREQ on CYW20829 behaves like Power-On Reset. Not desired when starting the Debug Port
+            <block info="Debug Reset">
+              __errorcontrol = 1;
+              // Request Debug Reset
+              WriteDP(DP_CTRL_STAT, 0x54000000);
+              // CDBGRSTREQ is equivalent to Power-On Reset and fully reboots the device.
+              // Depending on the user application the reboot can take up to 1200ms.
+              DAP_Delay(1200000);
+              __errorcontrol = 0;
+            </block>
+            -->
+            <!-- Wait for Debug Reset to be acknowledged, don't issue error on timeout to deal with improperly connected Debug Reset -->
+            <!-- <control while="(ReadDP(DP_CTRL_STAT) &amp; 0xA8000000) != 0xA8000000" timeout="300000" info="Wait for Debug Reset Acknowledge"/> -->
+          </control>
+          <!-- JTAG Specific Part of sequence -->
+          <control if="(__protocol &amp; 0xFFFF) == 1">
+            <block info="JTAG: Clear Sticky Bits">
+              // Init AP Transfer Mode, Transaction Counter, and Lane Mask (Normal Transfer Mode, Include all Byte Lanes)
+              // Additionally clear STICKYORUN, STICKYCMP, and STICKYERR bits by writing '1'
+              WriteDP(DP_CTRL_STAT, 0x50000F32);
+            </block>
+          </control>
+          <!-- SWD Specific Part of sequence -->
+          <control if="(__protocol &amp; 0xFFFF) == 2">
+            <block info="SWD: Init SWD &amp; Clear Sticky Bits">
+              // Init AP Transfer Mode, Transaction Counter, and Lane Mask (Normal Transfer Mode, Include all Byte Lanes)
+              WriteDP(DP_CTRL_STAT, 0x50000F00);
+              // Clear WDATAERR, STICKYORUN, STICKYCMP, and STICKYERR bits of CTRL/STAT Register by write to ABORT register
+              WriteDP(DP_ABORT, 0x0000001E);
+            </block>
           </control>
         </sequence>
         <!-- Acquires the target in WFA mode using request code for debug certificates -->
@@ -172,60 +292,143 @@
             </block>
           </control>
         </sequence>
-        <sequence name="DebugPortStart">
-          <block info="Read DP CTRL/STAT">
-            __var DP_ABORT  = 0x0;
-            __var DP_CTRL_STAT = 0x4;
-            __var DP_SELECT    = 0x8;
-            __var powered_down = 0;
-            // Read DP CTRL/STAT Register and check if CSYSPWRUPACK and CDBGPWRUPACK bits are set
-            powered_down = ((ReadDP(DP_CTRL_STAT) &amp; 0xA0000000) != 0xA0000000);
+        <sequence name="PrintDeviceInfo">
+          <block>
+            __var EFUSE_CTRL_ADDR = 0x40810000; // Efuse control register
+            __ap = 0;
+            // Get efuse status
+            __var EFUSE_STAT = Read32(EFUSE_CTRL_ADDR); // Store initial Efuse state
           </block>
-          <control if="powered_down">
-            <block info="Power Up System &amp; Debug">
-              // Request Debug/System Power-Up
-              // Ignore error here: even there is a polling in the next block, CMSIS-DAP transports reads DP.RDBUFF register
-              // right after write to DP.CTRL_STAT. This will fail for some cases - for example if device is waking from DeepSleep.
-              __errorcontrol = 1;
-              WriteDP(DP_CTRL_STAT, 0x50000000);
-              __errorcontrol = 0;
-            </block>
-            <!-- Wait for Power-Up Request to be acknowledged -->
-            <control while="(ReadDP(DP_CTRL_STAT) &amp; 0xA0000000) != 0xA0000000" timeout="1000000" info="Wait for power acknowledged" />
-            <!-- CDBGRSTREQ on CYW20829 behaves like Power-On Reset. Not desired when starting the Debug Port
-            <block info="Debug Reset">
-              __errorcontrol = 1;
-              // Request Debug Reset
-              WriteDP(DP_CTRL_STAT, 0x54000000);
-              // CDBGRSTREQ is equivalent to Power-On Reset and fully reboots the device.
-              // Depending on the user application the reboot can take up to 1200ms.
-              DAP_Delay(1200000);
-              __errorcontrol = 0;
-            </block>
-            -->
-            <!-- Wait for Debug Reset to be acknowledged, don't issue error on timeout to deal with improperly connected Debug Reset -->
-            <!-- <control while="(ReadDP(DP_CTRL_STAT) &amp; 0xA8000000) != 0xA8000000" timeout="300000" info="Wait for Debug Reset Acknowledge"/> -->
-          </control>
-          <!-- JTAG Specific Part of sequence -->
-          <control if="(__protocol &amp; 0xFFFF) == 1">
-            <block info="JTAG: Clear Sticky Bits">
-              // Init AP Transfer Mode, Transaction Counter, and Lane Mask (Normal Transfer Mode, Include all Byte Lanes)
-              // Additionally clear STICKYORUN, STICKYCMP, and STICKYERR bits by writing '1'
-              WriteDP(DP_CTRL_STAT, 0x50000F32);
-            </block>
-          </control>
-          <!-- SWD Specific Part of sequence -->
-          <control if="(__protocol &amp; 0xFFFF) == 2">
-            <block info="SWD: Init SWD &amp; Clear Sticky Bits">
-              // Init AP Transfer Mode, Transaction Counter, and Lane Mask (Normal Transfer Mode, Include all Byte Lanes)
-              WriteDP(DP_CTRL_STAT, 0x50000F00);
-              // Clear WDATAERR, STICKYORUN, STICKYCMP, and STICKYERR bits of CTRL/STAT Register by write to ABORT register
-              WriteDP(DP_ABORT, 0x0000001E);
+          <control if="(EFUSE_STAT &amp; 0x80000000) == 0">
+            <block>
+              // Enable efuse
+              Write32(EFUSE_CTRL_ADDR, EFUSE_STAT | 0x80000000);
             </block>
           </control>
           <block>
-            // Switch to DP Register Bank 0. Explicitly set APSEL to current AP selection
-            WriteDP(DP_SELECT, __ap &lt;&lt; 24);
+            __var siId;
+            __var siFamily;
+            __var siRev;
+            __var isCorrupted = 1;
+            __var EFUSE_DEVICE_ID_ADDR = 0x40810870;
+            __var EFUSE_SI_REV_ID_ADDR = 0x4081087C;
+            __var EFUSE_BOOTROW_ADDR   = 0x40810180;
+            // Get Si Id, Family
+            __var v = Read32(EFUSE_DEVICE_ID_ADDR);
+            siId = v &amp; 0x0000FFFF;
+            siFamily = (v &amp; 0x0FFF0000) &gt;&gt; 16;
+            // Get Si Rev
+            v = Read32(EFUSE_SI_REV_ID_ADDR);
+            siRev = (v &amp; 0x00FF0000) &gt;&gt; 16;
+            Message(0, "****************************************************");
+            Message(0, "** Silicon: 0x%04X, Family: 0x%03X, Rev.: 0x%02X", siId, siFamily, siRev);
+            // Get LCS
+            v = Read32(EFUSE_BOOTROW_ADDR) &amp; 0x0000FFFF;
+          </block>
+          <control if="v == 0">
+            <block>
+              Message(0, "** Life Cycle : VIRGIN");
+              isCorrupted = 0;
+            </block>
+          </control>
+          <control if="v == 0x29">
+            <block>
+              Message(0, "** Life Cycle : SORT");
+              isCorrupted = 0;
+            </block>
+          </control>
+          <control if="v == 0xE9">
+            <block>
+              Message(0, "** Life Cycle : PROVISIONED");
+              isCorrupted = 0;
+            </block>
+          </control>
+          <control if="v == 0xC029">
+            <block>
+              Message(0, "** Life Cycle : NORMAL");
+              isCorrupted = 0;
+            </block>
+          </control>
+          <control if="v == 0xCC29">
+            <block>
+              Message(0, "** Life Cycle : NORMAL_NO_SECURE");
+              isCorrupted = 0;
+            </block>
+          </control>
+          <control if="v == 0xC0E9">
+            <block>
+              Message(0, "** Life Cycle : NORMAL_PROVISIONED");
+              isCorrupted = 0;
+            </block>
+          </control>
+          <control if="v == 0xC3E9">
+            <block>
+              Message(0, "** Life Cycle : SECURE");
+              isCorrupted = 0;
+            </block>
+          </control>
+          <control if="v == 0xF029">
+            <block>
+              Message(0, "** Life Cycle : RMA_NORMAL");
+              isCorrupted = 0;
+            </block>
+          </control>
+          <control if="v == 0xFC29">
+            <block>
+              Message(0, "** Life Cycle : RMA_NORMAL_NO_SECURE");
+              isCorrupted = 0;
+            </block>
+          </control>
+          <control if="v == 0xF3E9">
+            <block>
+              Message(0, "** Life Cycle : RMA_SECURE");
+              isCorrupted = 0;
+            </block>
+          </control>
+          <control if="isCorrupted != 0">
+            <block>
+              Message(0, "** Life Cycle : CORRUPTED");
+            </block>
+          </control>
+          <block>
+            __var SRSS_TST_DEBUG_STATUS = 0x40200408;
+            // Get boot status per SRSS_TST_DEBUG_STATUS
+            v = Read32(SRSS_TST_DEBUG_STATUS);
+          </block>
+          <control if="(v &amp; 0xFFF00000) == 0xBAF00000">
+            <block>
+              Message(0, "** Boot Status : 0x%08X", v);
+            </block>
+          </control>
+          <control if="(v &amp; 0xFFF00000) != 0xBAF00000">
+            <block>
+              __var SRAM_BOOT_VERSION_ADDR = 0x20000004;
+              __var SRAM_BOOT_BUILD_ADDR   = 0x20000008;
+              __var SRAM_STATUS_ADDR       = 0x20000000;
+              __var bootVerMajor;
+              __var bootVerMinor;
+              __var bootVerPatch;
+              __var bootVerBuild;
+              v = Read32(SRAM_BOOT_VERSION_ADDR);
+              bootVerMajor = (v &amp; 0x00FF0000) &gt;&gt; 16;
+              bootVerMinor = (v &amp; 0x0000FF00) &gt;&gt; 8;
+              bootVerPatch = v &amp; 0x000000FF;
+              bootVerBuild = Read32(SRAM_BOOT_BUILD_ADDR);
+              Message(0, "** Boot version: %u.%u.%u.%u", bootVerMajor, bootVerMinor, bootVerPatch, bootVerBuild);
+              v = Read32(SRAM_STATUS_ADDR);
+              Message(0, "** Boot Status : 0x%08X", v);
+            </block>
+          </control>
+          <block>
+            Message(0, "****************************************************");
+            Write32(EFUSE_CTRL_ADDR, EFUSE_STAT); // Restore initial Efuse state
+          </block>
+        </sequence>
+        <!-- Check if the device is in a locked state and unlock it. Executed after having powered up the debug port. -->
+        <sequence name="DebugDeviceUnlock">
+          <block>
+            // Print device info
+            Sequence("PrintDeviceInfo");
             __var AP_CSW;  // AP CSW value
             AP_CSW = ReadAP(0x0);
           </block>
@@ -257,6 +460,17 @@
                 </block>
               </control>
               <block>
+                WriteAP(0x0, 0xAB000002);
+                __var SRSS_TST_DEBUG_STATUS = 0x40200408;
+                // Get boot status per SRSS_TST_DEBUG_STATUS
+                __var BootStatus = Read32(SRSS_TST_DEBUG_STATUS);
+              </block>
+              <control if="BootStatus != 0x0D500084">
+                <block>
+                  Message(2, "** The debug certificate was not accepted by device, Boot Status: 0x%08X", BootStatus);
+                </block>
+              </control>
+              <block>
                 __ap = 1;
                 AP_CSW = ReadAP(0x0);
               </block>
@@ -272,23 +486,20 @@
                     __ap = 0;
                     __var RAM_BOOT_STATUS_ADDR = 0x20000000;
                     WriteAP(0x0, 0xAB000002);
-                    __var BootStatus = Read32(RAM_BOOT_STATUS_ADDR);
+                    BootStatus = Read32(RAM_BOOT_STATUS_ADDR);
                     Message(2, "** CM33 AP still closed, Boot Status: 0x%08X", BootStatus);
                   </block>
               </control>
             </control>
             <control if="fileExists != 0">
               <block>
-                Message(2, "** The File packets/debug_cert.bin does Exists!");
+                Message(2, "** The File packets/debug_cert.bin does not exist!");
               </block>
             </control>
           </control>
           <control if="(AP_CSW &amp; 0x00000040) != 0">
             <block>
               Message(0, "** CM33 AP is open, CSW: 0x%08X", AP_CSW);
-              __var RAM_BOOT_STATUS_ADDR = 0x20000000;
-              __var BootStatus = Read32(RAM_BOOT_STATUS_ADDR);
-              Message(0, "** Boot Status: 0x%08X", BootStatus);
             </block>
           </control>
         </sequence>
@@ -324,6 +535,7 @@
             DAP_Delay(600000); // Wait for bootloader CYW20829 allows access to device
             sequence("DAP_Handshake");
             sequence("DebugPortStart");
+            sequence("DebugDeviceUnlock");
             __var DHCSR_Addr   = 0xE000EDF0;
             __var DHCSR = Read32(DHCSR_Addr);
           </block>
@@ -369,6 +581,7 @@
             DAP_Delay(600000); // Wait for bootloader CYW20829 allows access to device
             sequence("DAP_Handshake");
             sequence("DebugPortStart");
+            sequence("DebugDeviceUnlock");
           </block>
           <!-- Reset Recovery: Wait for DHCSR.S_RESET_ST bit to clear on read -->
           <control while="(Read32(DHCSR_Addr) &amp; 0x02000000)" timeout="500000" />
@@ -424,84 +637,52 @@
           </control>
         </sequence>
       </sequences>
-      <!-- CYW20829A0, 128Kb SRAM -->
-      <subFamily DsubFamily="CYW20829A0">
-        <memory name="IRAM1" access="rwx" start="0x20000000" size="0x20000" default="1" />
-        <device Dname="CYW20829A0KML">
-          <compile define="CYW20829A0KML" />
-        </device>
-        <device Dname="CYW20829A0LKML">
-          <compile define="CYW20829A0LKML" />
-        </device>
-      </subFamily>
-      <!-- CYW20829A0, 256Kb SRAM -->
+      <!-- CYW20829, 256Kb SRAM -->
       <subFamily DsubFamily="CYW20829">
         <memory name="IRAM1" access="rwx" start="0x20000000" size="0x40000" default="1" />
-        <device Dname="CYW20829B0KML">
-          <compile define="CYW20829B0KML" />
+        <device Dname="CYW20829B0010">
+          <compile define="CYW20829B0010" />
+        </device>
+        <device Dname="CYW20829B0021">
+          <compile define="CYW20829B0021" />
         </device>
         <device Dname="CYW20829B0LKML">
           <compile define="CYW20829B0LKML" />
         </device>
       </subFamily>
-      <!-- CYW89829A0, 128Kb SRAM -->
-      <subFamily DsubFamily="CYW89829A0">
-        <memory name="IRAM1" access="rwx" start="0x20000000" size="0x20000" default="1" />
-        <device Dname="CYW89829A0KML">
-          <compile define="CYW89829A0KML" />
-        </device>
-      </subFamily>
-      <!-- CYW89829A0, 256Kb SRAM -->
+      <!-- CYW89829, 256Kb SRAM -->
       <subFamily DsubFamily="CYW89829">
         <memory name="IRAM1" access="rwx" start="0x20000000" size="0x40000" default="1" />
-        <device Dname="CYW89829B01MKSBG">
-          <compile define="CYW89829B01MKSBG" />
+        <device Dname="CYW89829B0022">
+          <compile define="CYW89829B0022" />
         </device>
-        <device Dname="CYW89829B0KML">
-          <compile define="CYW89829B0KML" />
+        <device Dname="CYW89829B0232">
+          <compile define="CYW89829B0232" />
         </device>
       </subFamily>
     </family>
   </devices>
   <conditions>
-    <condition id="CYW208xx">
-      <description>CYW208xx devices</description>
+    <condition id="CYWxx829">
+      <description>CYWxx829 devices</description>
       <accept condition="CYW20829" />
-      <require Cclass="Device" Cgroup="Startup" />
-    </condition>
-    <condition id="CYW898xx">
-      <description>CYW898xx devices</description>
       <accept condition="CYW89829" />
       <require Cclass="Device" Cgroup="Startup" />
     </condition>
     <condition id="CYW20829">
       <description>CYW20829 devices</description>
-      <accept Dvendor="Infineon:7" Dname="CYW20829A0KML" />
-      <accept Dvendor="Infineon:7" Dname="CYW20829A0LKML" />
-      <accept Dvendor="Infineon:7" Dname="CYW20829B0KML" />
+      <accept Dvendor="Infineon:7" Dname="CYW20829B0010" />
+      <accept Dvendor="Infineon:7" Dname="CYW20829B0021" />
       <accept Dvendor="Infineon:7" Dname="CYW20829B0LKML" />
     </condition>
     <condition id="CYW89829">
       <description>CYW89829 devices</description>
-      <accept Dvendor="Infineon:7" Dname="CYW89829A0KML" />
-      <accept Dvendor="Infineon:7" Dname="CYW89829B01MKSBG" />
-      <accept Dvendor="Infineon:7" Dname="CYW89829B0KML" />
+      <accept Dvendor="Infineon:7" Dname="CYW89829B0022" />
+      <accept Dvendor="Infineon:7" Dname="CYW89829B0232" />
     </condition>
   </conditions>
   <components>
-    <component Cclass="Device" Cgroup="Startup" Cversion="1.0.0" condition="CYW208xx">
-      <!-- This is a dummy startup implementation that emits a compiler error once
-           this software component is enabled in the CMSIS RTE project configuration.
-           It exists to silence PackChk WARNING M350: No 'Startup' component found.
-           Refer to README.txt in the pack root directory for the guidance on the
-           intended use of this CSMIS pack. -->
-      <description>Dummy startup component, do not use</description>
-      <files>
-        <file category="doc" name="README.txt" />
-        <file category="source" name="Device/Source/startup_error.c" version="1.0.0" />
-      </files>
-    </component>
-    <component Cclass="Device" Cgroup="Startup" Cversion="1.0.0" condition="CYW898xx">
+    <component Cclass="Device" Cgroup="Startup" Cversion="1.0.0" condition="CYWxx829">
       <!-- This is a dummy startup implementation that emits a compiler error once
            this software component is enabled in the CMSIS RTE project configuration.
            It exists to silence PackChk WARNING M350: No 'Startup' component found.
