@@ -12,4 +12,11 @@ The following CMSIS DFP packs were moved from Cypress.pidx to Infineon.pidx at h
 * Infineon.CAT2_DFP
 * Infineon.CAT1A_DFP
 
-This repo is deprecated. Upcoming Infineon CMSIS pack releases will be uploaded to https://itools.infineon.com/cmsis_packs/, updating Infineon.pidx instead of Cypress.pidx.
+The following CMSIS DFP packs were marked as deprecated:
+
+* Cypress.PSoC6_DFP (replaced by Infineon.CAT1A_DFP)
+* Cypress.PSoC4_DFP (replaced by Infineon.CAT2_DFP)
+* Cypress.PMG1_DFP (replaced by Infineon.CAT2_DFP)
+* Infineon.PSoC6_DFP (replaced by Infineon.CAT1A_DFP)
+
+This repo is deprecated. Upcoming Infineon CMSIS pack releases will be uploaded to https://itools.infineon.com/cmsis_packs/, updating [Infineon.pidx](https://github.com/Infineon/cmsis_packs/blob/master/Infineon.pidx) instead of [Cypress.pidx](https://github.com/Infineon/cmsis-packs/blob/master/Cypress.pidx).
