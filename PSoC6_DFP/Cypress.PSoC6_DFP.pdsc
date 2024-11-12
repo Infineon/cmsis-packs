@@ -3,10 +3,13 @@
   <vendor>Cypress</vendor>
   <name>PSoC6_DFP</name>
   <description>Cypress PSoC 6 Device Support</description>
-  <url>https://github.com/cypresssemiconductorco/cmsis-packs/raw/master/PSoC6_DFP/</url>
+  <url>https://github.com/Infineon/cmsis-packs/raw/master/PSoC6_DFP/</url>
   <supportContact>https://www.cypress.com/support</supportContact>
   <license>APACHE_LICENSE.txt</license>
   <releases>
+    <release version="1.2.1" date="2024-11-12" deprecated="2024-11-12" replacement="Infineon.CAT1A_DFP">
+      - This Software Pack is no longer maintained: replaced by Infineon.CAT1A_DFP.
+    </release>
     <release version="1.2.0" date="2021-02-26">
       - Added new CY8C6xx4, CY8C6xx5, CY8C6xx8 and CY8C6xxA devices in PSoC® 61 series.
       - Added new CY8C6xx4 and removed obsolete CY8C6xx5 and CY8C6xxA devices in PSoC® 62 series

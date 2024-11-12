@@ -3,10 +3,13 @@
   <vendor>Cypress</vendor>
   <name>PMG1_DFP</name>
   <description>Cypress PMG1 Device Support</description>
-  <url>https://github.com/cypresssemiconductorco/cmsis-packs/raw/master/PMG1_DFP/</url>
+  <url>https://github.com/Infineon/cmsis-packs/raw/master/PMG1_DFP/</url>
   <supportContact>https://www.cypress.com/support</supportContact>
   <license>APACHE_LICENSE.txt</license>
   <releases>
+    <release version="1.0.1" date="2024-11-12" deprecated="2024-11-12" replacement="Infineon.CAT2_DFP">
+      - This Software Pack is no longer maintained: replaced by Infineon.CAT2_DFP.
+    </release>
     <release version="1.0.0" date="2021-11-01">
       - First Release version of EZ-PD™ PMG1 Device Family Pack.
       - Based on Cypress PMG1 CMSIS Flash Loaders v2.1.0.137.

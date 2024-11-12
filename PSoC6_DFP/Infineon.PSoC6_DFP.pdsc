@@ -7,6 +7,9 @@
   <supportContact>https://www.infineon.com/support</supportContact>
   <license>APACHE_LICENSE.txt</license>
   <releases>
+    <release version="1.4.1" date="2024-11-12" deprecated="2024-11-12" replacement="Infineon.CAT1A_DFP">
+      - This Software Pack is no longer maintained: replaced by Infineon.CAT1A_DFP.
+    </release>
     <release version="1.4.0" date="2022-08-09">
       - Read and print target device information.
       - Fixed JTAG initialization problems.

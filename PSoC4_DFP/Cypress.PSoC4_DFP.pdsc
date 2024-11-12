@@ -3,10 +3,13 @@
   <vendor>Cypress</vendor>
   <name>PSoC4_DFP</name>
   <description>Cypress PSoC 4 Device Support</description>
-  <url>https://github.com/cypresssemiconductorco/cmsis-packs/raw/master/PSoC4_DFP/</url>
+  <url>https://github.com/Infineon/cmsis-packs/raw/master/PSoC4_DFP/</url>
   <supportContact>https://www.cypress.com/support</supportContact>
   <license>APACHE_LICENSE.txt</license>
   <releases>
+    <release version="1.1.1" date="2024-11-12" deprecated="2024-11-12" replacement="Infineon.CAT2_DFP">
+      - This Software Pack is no longer maintained: replaced by Infineon.CAT2_DFP.
+    </release>
     <release version="1.1.0" date="2020-09-07">
       First Release version of PSoC® 4 Device Family Pack.
       Based on Cypress PSoC® 4 CMSIS Flash Loaders v2.0.0.25.
