@@ -7,6 +7,9 @@
   <supportContact>https://www.infineon.com/support</supportContact>
   <license>APACHE_LICENSE.txt</license>
   <releases>
+    <release version="1.3.0" date="2026-01-06">
+      Added new devices in CYW20829 and CYW89829 series.
+    </release>
     <release version="1.2.0" date="2024-09-09">
       Added new devices in CYW89829 series.
     </release>
@@ -28,7 +31,7 @@
   <devices>
     <!-- CYWxx829 -->
     <family Dfamily="CYWxx829" Dvendor="Infineon:7">
-      <processor Pname="Cortex-M33" Dcore="Cortex-M33" DcoreVersion="r0p1" Dfpu="NO_FPU" Dmpu="MPU" Dendian="Little-endian" Dclock="96000000" />
+      <processor Pname="Cortex-M33" Dcore="Cortex-M33" DcoreVersion="r0p1" Dfpu="NO_FPU" Dmpu="MPU" Dtz="NO_TZ" Ddsp="NO_DSP" Dendian="Little-endian" Dclock="96000000" />
       <description>CYW208xx: Cortex-M33 MCU series with integrated analog and digital peripherals.</description>
       <book name="README.txt" title="Infineon AIROC DFP user guide" />
       <book name="known_issues.txt" title="Infineon AIROC DFP known issues" />
@@ -640,24 +643,42 @@
       <!-- CYW20829, 256Kb SRAM -->
       <subFamily DsubFamily="CYW20829">
         <memory name="IRAM1" access="rwx" start="0x20000000" size="0x40000" default="1" />
+        <device Dname="CYW20829B0000">
+          <compile define="CYW20829B0000" />
+        </device>
         <device Dname="CYW20829B0010">
           <compile define="CYW20829B0010" />
         </device>
-        <device Dname="CYW20829B0021">
-          <compile define="CYW20829B0021" />
-        </device>
         <device Dname="CYW20829B0LKML">
           <compile define="CYW20829B0LKML" />
+        </device>
+        <device Dname="CYW20829B1000">
+          <compile define="CYW20829B1000" />
+        </device>
+        <device Dname="CYW20829B1010">
+          <compile define="CYW20829B1010" />
+        </device>
+        <device Dname="CYW20829B1240">
+          <compile define="CYW20829B1240" />
+        </device>
+        <device Dname="CYW20829B1340">
+          <compile define="CYW20829B1340" />
         </device>
       </subFamily>
       <!-- CYW89829, 256Kb SRAM -->
       <subFamily DsubFamily="CYW89829">
         <memory name="IRAM1" access="rwx" start="0x20000000" size="0x40000" default="1" />
-        <device Dname="CYW89829B0022">
-          <compile define="CYW89829B0022" />
+        <device Dname="CYW89829B0062">
+          <compile define="CYW89829B0062" />
         </device>
         <device Dname="CYW89829B0232">
           <compile define="CYW89829B0232" />
+        </device>
+        <device Dname="CYW89829B1062">
+          <compile define="CYW89829B1062" />
+        </device>
+        <device Dname="CYW89829B1232">
+          <compile define="CYW89829B1232" />
         </device>
       </subFamily>
     </family>
@@ -667,18 +688,23 @@
       <description>CYWxx829 devices</description>
       <accept condition="CYW20829" />
       <accept condition="CYW89829" />
-      <require Cclass="Device" Cgroup="Startup" />
     </condition>
     <condition id="CYW20829">
       <description>CYW20829 devices</description>
+      <accept Dvendor="Infineon:7" Dname="CYW20829B0000" />
       <accept Dvendor="Infineon:7" Dname="CYW20829B0010" />
-      <accept Dvendor="Infineon:7" Dname="CYW20829B0021" />
       <accept Dvendor="Infineon:7" Dname="CYW20829B0LKML" />
+      <accept Dvendor="Infineon:7" Dname="CYW20829B1000" />
+      <accept Dvendor="Infineon:7" Dname="CYW20829B1010" />
+      <accept Dvendor="Infineon:7" Dname="CYW20829B1240" />
+      <accept Dvendor="Infineon:7" Dname="CYW20829B1340" />
     </condition>
     <condition id="CYW89829">
       <description>CYW89829 devices</description>
-      <accept Dvendor="Infineon:7" Dname="CYW89829B0022" />
+      <accept Dvendor="Infineon:7" Dname="CYW89829B0062" />
       <accept Dvendor="Infineon:7" Dname="CYW89829B0232" />
+      <accept Dvendor="Infineon:7" Dname="CYW89829B1062" />
+      <accept Dvendor="Infineon:7" Dname="CYW89829B1232" />
     </condition>
   </conditions>
   <components>
